@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { uploadEncrypted } from "@/lib/upload/encrypted-uploader";
+import { measureFile, submitMeasurements } from "@/lib/upload/measure";
 import { ACCEPT_ATTRIBUTE, modalityForFilename } from "@/lib/upload/modality";
 import { makeImagePreview, uploadPreview } from "@/lib/upload/preview";
 import type { HashResponse } from "@/lib/upload/hash-worker";
@@ -120,6 +121,14 @@ export function UploadQueue() {
         if (payload.assetId && finalStatus !== "flagged") {
           patch(id, { status: "encrypting", assetId: payload.assetId, hashedBytes: 0 });
           const assetId = payload.assetId;
+          // Tier-1 measurement (duration/dimensions) happens on-device — only
+          // the numbers leave the browser. Best-effort, never blocks upload.
+          const modality = modalityForFilename(file.name);
+          if (modality) {
+            void measureFile(file, modality).then((measured) =>
+              measured ? submitMeasurements(assetId, measured) : undefined,
+            );
+          }
           try {
             await uploadEncrypted(assetId, file, (sent, total) => {
               patch(id, {
