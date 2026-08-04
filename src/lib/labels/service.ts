@@ -6,12 +6,18 @@
  */
 import { db } from "../db/pool";
 
+/** Stages during which labels may still change; registration seals them. */
+const EDITABLE_STAGES = ["IN_TRAY", "LABELED"] as const;
+
 async function assertOwnership(creatorId: string, assetId: string): Promise<void> {
-  const owner = await db.query<{ id: string }>(
-    "SELECT id FROM asset WHERE id = $1 AND creator_id = $2",
+  const owner = await db.query<{ stage: string }>(
+    "SELECT stage::text AS stage FROM asset WHERE id = $1 AND creator_id = $2",
     [assetId, creatorId],
   );
   if (!owner.rows[0]) throw new Error("asset not found");
+  if (!(EDITABLE_STAGES as readonly string[]).includes(owner.rows[0].stage)) {
+    throw new Error("labels are sealed once the asset is registered");
+  }
 }
 
 export async function confirmLabel(
