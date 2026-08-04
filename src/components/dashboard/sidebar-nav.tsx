@@ -47,7 +47,7 @@ export function SidebarNav() {
             <div className="rail-label font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               {section.label}
             </div>
-            <div className="absolute inset-x-2 top-1/2 border-t transition-opacity duration-200 group-hover/rail:opacity-0" />
+            <div className="absolute inset-x-2 top-1/2 border-t transition-opacity duration-200 group-hover/rail:opacity-0 group-focus-within/rail:opacity-0" />
           </div>
           <div className="flex flex-col gap-1">
             {section.items.map(({ href, label, icon: Icon }) => {
