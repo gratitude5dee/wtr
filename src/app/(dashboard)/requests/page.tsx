@@ -42,6 +42,7 @@ export default async function RequestsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Request</TableHead>
+              <TableHead>Lab</TableHead>
               <TableHead>License</TableHead>
               <TableHead>Budget</TableHead>
               <TableHead>Status</TableHead>
@@ -56,6 +57,7 @@ export default async function RequestsPage() {
                     {request.title}
                   </Link>
                 </TableCell>
+                <TableCell className="font-mono text-xs">{request.requester}</TableCell>
                 <TableCell>{PRESET_NAME[request.licensePreset] ?? request.licensePreset}</TableCell>
                 <TableCell className="font-mono text-xs">{formatIp(request.budgetWei)}</TableCell>
                 <TableCell>

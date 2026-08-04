@@ -131,3 +131,93 @@
     @apply bg-background text-foreground;
   }
 }
+/* ---- Motion system --------------------------------------------------- */
+
+/* The left nav is a 68px icon rail that expands over the content on hover;
+   the page reserves only the collapsed width, so nothing reflows. */
+.nav-rail {
+  width: 68px;
+  transition:
+    width 0.3s cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 0.3s ease;
+}
+.nav-rail:hover {
+  width: 240px;
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Labels inside the collapsible nav rail: hidden when the rail is a 68px
+   icon strip, revealed as it expands on hover. */
+.rail-label {
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 0.25s cubic-bezier(0.32, 0.72, 0, 1) 0.05s,
+    transform 0.25s cubic-bezier(0.32, 0.72, 0, 1) 0.05s;
+  pointer-events: none;
+}
+.group\/rail:hover .rail-label {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Staggered entrance for every page: each top-level block of the page
+     content rises in sequence. */
+  main > * > * {
+    animation: rise 0.45s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  main > * > *:nth-child(2) { animation-delay: 0.05s; }
+  main > * > *:nth-child(3) { animation-delay: 0.1s; }
+  main > * > *:nth-child(4) { animation-delay: 0.15s; }
+  main > * > *:nth-child(5) { animation-delay: 0.2s; }
+  main > * > *:nth-child(6) { animation-delay: 0.25s; }
+  main > * > *:nth-child(n + 7) { animation-delay: 0.3s; }
+
+  /* Cards feel physical: lift on hover, settle on press. */
+  [data-slot="card"] {
+    transition:
+      transform 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+  a:hover > [data-slot="card"],
+  a:hover [data-slot="card"] {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Rows and interactive chrome respond to the pointer. */
+  tr {
+    transition: background-color 0.15s ease;
+  }
+  button,
+  [data-slot="button"] {
+    transition:
+      transform 0.15s cubic-bezier(0.32, 0.72, 0, 1),
+      background-color 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease,
+      opacity 0.15s ease;
+  }
+  button:active:not(:disabled),
+  [data-slot="button"]:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  [data-slot="badge"] {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+}

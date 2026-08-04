@@ -412,6 +412,7 @@ export async function listConsentHistory(
 export interface DataRequestRow {
   id: string;
   title: string;
+  requester: string;
   licensePreset: string;
   budgetWei: bigint;
   status: string;
@@ -426,13 +427,14 @@ export async function listDataRequests(
   const result = await q.query<{
     id: string;
     title: string;
+    requester_anon_id: string;
     license_preset: string;
     budget_wei: string;
     status: string;
     created_at: Date;
     my_submissions: string;
   }>(
-    `SELECT r.id, r.title, r.license_preset, r.budget_wei::text AS budget_wei,
+    `SELECT r.id, r.title, r.requester_anon_id, r.license_preset, r.budget_wei::text AS budget_wei,
             r.status, r.created_at,
             count(s.id) FILTER (WHERE a.creator_id = $1)::text AS my_submissions
      FROM data_request r
@@ -444,6 +446,7 @@ export async function listDataRequests(
   return result.rows.map((row) => ({
     id: row.id,
     title: row.title,
+    requester: row.requester_anon_id,
     licensePreset: row.license_preset,
     budgetWei: weiFromDb(row.budget_wei),
     status: row.status,

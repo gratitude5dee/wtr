@@ -27,6 +27,7 @@ export interface RequestDetail {
   createdAt: Date;
   /** The account that posted the brief and reviews its submissions. */
   requesterCreatorId: string | null;
+  requesterAnonId: string;
 }
 
 export async function getRequest(requestId: string, q: Queryable = db): Promise<RequestDetail | null> {
@@ -42,10 +43,11 @@ export async function getRequest(requestId: string, q: Queryable = db): Promise<
     status: string;
     created_at: Date;
     requester_creator_id: string | null;
+    requester_anon_id: string;
   }>(
     `SELECT id, title, spec, license_preset, budget_wei::text AS budget_wei,
             unit_price_wei::text AS unit_price_wei, kyc_required, deadline,
-            status, created_at, requester_creator_id
+            status, created_at, requester_creator_id, requester_anon_id
      FROM data_request WHERE id = $1`,
     [requestId],
   );
@@ -63,6 +65,7 @@ export async function getRequest(requestId: string, q: Queryable = db): Promise<
     status: row.status,
     createdAt: row.created_at,
     requesterCreatorId: row.requester_creator_id,
+    requesterAnonId: row.requester_anon_id,
   };
 }
 
