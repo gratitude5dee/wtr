@@ -21,7 +21,9 @@ import { getLicenseChoice } from "@/lib/listing/service";
 import { formatWei } from "@/lib/money";
 
 import { LicensePicker } from "@/components/dashboard/license-picker";
+import { RegisterCard } from "@/components/dashboard/register-card";
 import { TakedownCard } from "@/components/dashboard/takedown-card";
+import { registerProgress, registrationReadiness } from "@/lib/register/service";
 import { isWithdrawn } from "@/lib/takedown/service";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +75,9 @@ export default async function AssetDetailPage({
   const choice = await getLicenseChoice(asset.id);
   const choiceEditable = asset.stage === "IN_TRAY" || asset.stage === "LABELED";
   const withdrawn = await isWithdrawn(asset.id);
+  const registrable = choiceEditable || asset.stage === "FAILED_REGISTER";
+  const readiness = registrable ? await registrationReadiness(creator.id, asset.id) : null;
+  const progress = registrable ? await registerProgress(asset.id) : {};
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -145,24 +150,13 @@ export default async function AssetDetailPage({
         </CardContent>
       </Card>
 
-      {choiceEditable && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Registration</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              Registration encrypts your original on your device, records provenance,
-              registers your rights on-chain, and creates the license-gated access
-              vault — in that order. Nothing is sold before all four complete.
-            </p>
-            <p>
-              {choice.preset
-                ? "Your license choice above will be sealed into the registration."
-                : "Choose a license above first — registration needs it."}
-            </p>
-          </CardContent>
-        </Card>
+      {registrable && readiness && (
+        <RegisterCard
+          assetId={asset.id}
+          failed={asset.stage === "FAILED_REGISTER"}
+          blockers={readiness.blockers}
+          progress={progress}
+        />
       )}
 
       <Card>
