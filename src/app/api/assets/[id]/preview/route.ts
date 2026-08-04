@@ -27,9 +27,13 @@ export async function PUT(request: NextRequest, context: Context): Promise<NextR
     const bytes = new Uint8Array(await request.arrayBuffer());
     const previewUrl = await storePreview(creator.id, id, bytes);
     // Tier-2 labeling is queued off the preview and runs after the response
-    // is sent — the upload flow never blocks on a model call.
-    const state = await enqueueTier2(id);
-    if (state === "queued") after(() => runTier2Job(id));
+    // is sent — the upload flow never blocks on (or fails because of) it.
+    try {
+      const state = await enqueueTier2(id);
+      if (state === "queued") after(() => runTier2Job(id));
+    } catch (error) {
+      log.warn("tier-2 enqueue failed", { assetId: id, error: (error as Error).message });
+    }
     return NextResponse.json({ previewUrl });
   } catch (error) {
     if (error instanceof PreviewError) {
