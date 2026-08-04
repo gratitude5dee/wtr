@@ -51,3 +51,6 @@ export const PIL_TERMS_BASE_URI = () =>
   optional("WTR_PIL_TERMS_BASE_URI", "https://ipfs.io/ipfs");
 
 export const LOG_LEVEL = () => optional("WTR_LOG_LEVEL", "info");
+
+/** Where server-held ciphertext and public previews live on disk. */
+export const MEDIA_DIR = () => optional("WTR_MEDIA_DIR", "var/media");

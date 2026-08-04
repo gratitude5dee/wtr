@@ -7,10 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { uploadEncrypted } from "@/lib/upload/encrypted-uploader";
 import { ACCEPT_ATTRIBUTE, modalityForFilename } from "@/lib/upload/modality";
+import { makeImagePreview, uploadPreview } from "@/lib/upload/preview";
 import type { HashResponse } from "@/lib/upload/hash-worker";
 
-type ItemStatus = "hashing" | "registering" | "registered" | "duplicate" | "flagged" | "error";
+type ItemStatus =
+  | "hashing"
+  | "registering"
+  | "encrypting"
+  | "registered"
+  | "duplicate"
+  | "flagged"
+  | "error";
 
 interface QueueItem {
   id: string;
@@ -36,7 +45,10 @@ function restoreQueue(): QueueItem[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as QueueItem[];
     return parsed.filter(
-      (item) => item.status !== "hashing" && item.status !== "registering",
+      (item) =>
+        item.status !== "hashing" &&
+        item.status !== "registering" &&
+        item.status !== "encrypting",
     );
   } catch {
     return [];
@@ -46,6 +58,7 @@ function restoreQueue(): QueueItem[] {
 const STATUS_TEXT: Record<ItemStatus, string> = {
   hashing: "Hashing in your browser…",
   registering: "Registering…",
+  encrypting: "Encrypting & uploading — the key stays on this device…",
   registered: "In your tray",
   duplicate: "Already in your tray",
   flagged: "Needs review — same bytes claimed by another creator",
@@ -99,14 +112,31 @@ export function UploadQueue() {
           patch(id, { status: "error", error: payload.error ?? `HTTP ${response.status}` });
           return;
         }
-        patch(id, {
-          status: payload.duplicateClaimFlag
-            ? "flagged"
-            : payload.existing
-              ? "duplicate"
-              : "registered",
-          assetId: payload.assetId,
-        });
+        const finalStatus: ItemStatus = payload.duplicateClaimFlag
+          ? "flagged"
+          : payload.existing
+            ? "duplicate"
+            : "registered";
+        if (payload.assetId && finalStatus !== "flagged") {
+          patch(id, { status: "encrypting", assetId: payload.assetId, hashedBytes: 0 });
+          const assetId = payload.assetId;
+          try {
+            await uploadEncrypted(assetId, file, (sent, total) => {
+              patch(id, {
+                hashedBytes: Math.round((sent / total) * file.size),
+              });
+            });
+            const preview = await makeImagePreview(file);
+            if (preview) await uploadPreview(assetId, preview);
+          } catch (error) {
+            patch(id, {
+              status: "error",
+              error: error instanceof Error ? error.message : "upload failed",
+            });
+            return;
+          }
+        }
+        patch(id, { status: finalStatus, assetId: payload.assetId });
       } catch (error) {
         patch(id, { status: "error", error: error instanceof Error ? error.message : "network" });
       }
@@ -214,9 +244,10 @@ export function UploadQueue() {
                     {STATUS_TEXT[item.status]}
                   </Badge>
                 </div>
-                {item.status === "hashing" && item.byteSize > 0 && (
-                  <Progress value={(item.hashedBytes / item.byteSize) * 100} />
-                )}
+                {(item.status === "hashing" || item.status === "encrypting") &&
+                  item.byteSize > 0 && (
+                    <Progress value={(item.hashedBytes / item.byteSize) * 100} />
+                  )}
                 {item.error && item.status === "error" && (
                   <p className="text-xs text-destructive">{item.error}</p>
                 )}
