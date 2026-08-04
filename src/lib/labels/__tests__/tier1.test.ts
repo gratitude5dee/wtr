@@ -49,6 +49,14 @@ describe("validateMeasuredLabels", () => {
     expect(() => validateMeasuredLabels({ gps_lat: 1 })).toThrow(MeasuredLabelError);
   });
 
+  it("rejects inherited property names — no prototype-chain bypass", () => {
+    expect(() => validateMeasuredLabels({ toString: 1e12 })).toThrow(MeasuredLabelError);
+    expect(() => validateMeasuredLabels(JSON.parse('{"__proto__": 5}'))).toThrow(
+      MeasuredLabelError,
+    );
+    expect(() => validateMeasuredLabels({ constructor: 1 })).toThrow(MeasuredLabelError);
+  });
+
   it("rejects non-finite, non-integer and out-of-range values", () => {
     expect(() => validateMeasuredLabels({ duration_s: Infinity })).toThrow(MeasuredLabelError);
     expect(() => validateMeasuredLabels({ width: 1.5 })).toThrow(MeasuredLabelError);

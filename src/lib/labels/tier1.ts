@@ -60,7 +60,12 @@ export function validateMeasuredLabels(payload: unknown): LabelInput[] {
   }
   const labels: LabelInput[] = [];
   for (const [key, value] of Object.entries(payload)) {
-    const rule = MEASURED_KEYS[key];
+    // Own-property check: a plain index would resolve inherited names like
+    // 'toString' (and JSON.parse produces own '__proto__' keys) to truthy
+    // values, silently bypassing the allowlist.
+    const rule = Object.prototype.hasOwnProperty.call(MEASURED_KEYS, key)
+      ? MEASURED_KEYS[key]
+      : undefined;
     if (!rule) throw new MeasuredLabelError(`unknown measurement '${key}'`);
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new MeasuredLabelError(`'${key}' must be a finite number`);

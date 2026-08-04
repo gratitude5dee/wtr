@@ -46,10 +46,19 @@ export async function POST(request: Request): Promise<NextResponse> {
       contentSha256,
     });
     if (!result.existing) {
-      await applyTier1Labels(
-        result.assetId,
-        serverTier1Labels({ filename, mimeType, modality, byteSize }),
-      );
+      // Best-effort: the asset is already committed, so a label failure must
+      // not turn a successful registration into a client-facing error.
+      try {
+        await applyTier1Labels(
+          result.assetId,
+          serverTier1Labels({ filename, mimeType, modality, byteSize }),
+        );
+      } catch (labelError) {
+        log.error("tier-1 labeling failed", {
+          assetId: result.assetId,
+          error: (labelError as Error).message,
+        });
+      }
     }
     return NextResponse.json(result, { status: result.existing ? 200 : 201 });
   } catch (error) {
