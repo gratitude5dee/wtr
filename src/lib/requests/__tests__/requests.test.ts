@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Queryable } from "../../db/pool";
-import { eligibleAssets, getRequest } from "../service";
+import { closeRequest, createRequest, eligibleAssets, getRequest, RequestError } from "../service";
 
 function fakeQueryable(rows: Record<string, unknown>[]): Queryable {
   return {
@@ -48,5 +48,55 @@ describe("eligibleAssets", () => {
       { assetId: "a1", filename: "one.wav", submissionStatus: null, eligible: true },
       { assetId: "a2", filename: null, submissionStatus: "pending", eligible: false },
     ]);
+  });
+});
+
+const requester = { id: "creator-1", anonId: "anon-1" };
+const validInput = {
+  title: "Field recordings",
+  modality: "audio",
+  notes: "urban rain",
+  licensePreset: "WTR-TRAIN-NONEXCLUSIVE",
+  budgetWei: 25n * 10n ** 18n,
+  unitPriceWei: null,
+  kycRequired: false,
+  deadline: null,
+};
+
+describe("createRequest", () => {
+  it("inserts a valid request and returns its id", async () => {
+    const id = await createRequest(requester, validInput, fakeQueryable([{ id: "req-1" }]));
+    expect(id).toBe("req-1");
+  });
+
+  it.each([
+    [{ title: "  " }, /title/],
+    [{ modality: "hologram" }, /modality/],
+    [{ licensePreset: "WTR-EVERYTHING" }, /license presets/],
+    [{ budgetWei: 0n }, /budget/],
+    [{ unitPriceWei: -1n }, /per-item price/],
+    [{ deadline: new Date(Date.now() - 1000) }, /deadline/],
+  ] as const)("rejects bad input %#", async (patch, message) => {
+    await expect(
+      createRequest(requester, { ...validInput, ...patch }, fakeQueryable([{ id: "req-1" }])),
+    ).rejects.toThrow(message);
+  });
+
+  it("rejects rather than inventing a row when the insert returns nothing", async () => {
+    await expect(createRequest(requester, validInput, fakeQueryable([]))).rejects.toThrow();
+  });
+});
+
+describe("closeRequest", () => {
+  it("throws a RequestError when there is no open request owned by the caller", async () => {
+    await expect(closeRequest("creator-1", "req-1", fakeQueryable([]))).rejects.toBeInstanceOf(
+      RequestError,
+    );
+  });
+
+  it("resolves when the request was closed", async () => {
+    await expect(
+      closeRequest("creator-1", "req-1", fakeQueryable([{ id: "req-1" }])),
+    ).resolves.toBeUndefined();
   });
 });

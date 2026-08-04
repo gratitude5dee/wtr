@@ -31,6 +31,8 @@ export const EVENT = {
   DUPLICATE_CLAIM_FLAGGED: "asset.duplicate_claim_flagged",
   SUBMITTED_TO_REQUEST: "asset.submitted_to_request",
   SUBMISSION_WITHDRAWN: "asset.submission_withdrawn",
+  SUBMISSION_ACCEPTED: "asset.submission_accepted",
+  SUBMISSION_REJECTED: "asset.submission_rejected",
 } as const;
 
 export type EventType = (typeof EVENT)[keyof typeof EVENT];

@@ -9,6 +9,7 @@ import { db, withTransaction, type Queryable } from "../db/pool";
 import { weiFromDb } from "../money";
 import { PgAssetStore } from "../pipeline/pg-store";
 import { EVENT } from "../pipeline/types";
+import { LICENSE_PRESETS } from "../story/license-presets";
 
 /** Bad input, safe to echo to the caller. */
 export class RequestError extends Error {}
@@ -19,8 +20,13 @@ export interface RequestDetail {
   spec: Record<string, unknown>;
   licensePreset: string;
   budgetWei: bigint;
+  unitPriceWei: bigint | null;
+  kycRequired: boolean;
+  deadline: Date | null;
   status: string;
   createdAt: Date;
+  /** The account that posted the brief and reviews its submissions. */
+  requesterCreatorId: string | null;
 }
 
 export async function getRequest(requestId: string, q: Queryable = db): Promise<RequestDetail | null> {
@@ -30,10 +36,16 @@ export async function getRequest(requestId: string, q: Queryable = db): Promise<
     spec: Record<string, unknown>;
     license_preset: string;
     budget_wei: string;
+    unit_price_wei: string | null;
+    kyc_required: boolean;
+    deadline: Date | null;
     status: string;
     created_at: Date;
+    requester_creator_id: string | null;
   }>(
-    `SELECT id, title, spec, license_preset, budget_wei::text AS budget_wei, status, created_at
+    `SELECT id, title, spec, license_preset, budget_wei::text AS budget_wei,
+            unit_price_wei::text AS unit_price_wei, kyc_required, deadline,
+            status, created_at, requester_creator_id
      FROM data_request WHERE id = $1`,
     [requestId],
   );
@@ -45,9 +57,168 @@ export async function getRequest(requestId: string, q: Queryable = db): Promise<
     spec: row.spec,
     licensePreset: row.license_preset,
     budgetWei: weiFromDb(row.budget_wei),
+    unitPriceWei: row.unit_price_wei === null ? null : weiFromDb(row.unit_price_wei),
+    kycRequired: row.kyc_required,
+    deadline: row.deadline,
     status: row.status,
     createdAt: row.created_at,
+    requesterCreatorId: row.requester_creator_id,
   };
+}
+
+export interface NewRequest {
+  title: string;
+  modality: string;
+  notes: string;
+  licensePreset: string;
+  budgetWei: bigint;
+  unitPriceWei: bigint | null;
+  kycRequired: boolean;
+  deadline: Date | null;
+}
+
+const MODALITIES = ["any", "audio", "image", "video", "3d", "motion"] as const;
+
+/** Posts a brief owned by the signed-in account (goal.md P0-7). */
+export async function createRequest(
+  requester: { id: string; anonId: string },
+  input: NewRequest,
+  q: Queryable = db,
+): Promise<string> {
+  const title = input.title.trim();
+  if (!title || title.length > 200) {
+    throw new RequestError("give the request a title (at most 200 characters)");
+  }
+  if (!(MODALITIES as readonly string[]).includes(input.modality)) {
+    throw new RequestError(`modality must be one of: ${MODALITIES.join(", ")}`);
+  }
+  if (!(LICENSE_PRESETS as readonly string[]).includes(input.licensePreset)) {
+    throw new RequestError("choose one of the three license presets");
+  }
+  if (input.budgetWei <= 0n) throw new RequestError("budget must be positive");
+  if (input.unitPriceWei !== null && input.unitPriceWei <= 0n) {
+    throw new RequestError("per-item price must be positive when set");
+  }
+  if (input.deadline !== null && input.deadline.getTime() <= Date.now()) {
+    throw new RequestError("the deadline must be in the future");
+  }
+  const rows = await q.query<{ id: string }>(
+    `INSERT INTO data_request
+       (requester_anon_id, requester_creator_id, title, spec, license_preset,
+        budget_wei, unit_price_wei, kyc_required, deadline)
+     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)
+     RETURNING id`,
+    [
+      requester.anonId,
+      requester.id,
+      title,
+      JSON.stringify({ modality: input.modality, notes: input.notes.trim().slice(0, 2000) }),
+      input.licensePreset,
+      input.budgetWei.toString(),
+      input.unitPriceWei === null ? null : input.unitPriceWei.toString(),
+      input.kycRequired,
+      input.deadline,
+    ],
+  );
+  return rows.rows[0].id;
+}
+
+export interface ReviewSubmissionRow {
+  submissionId: string;
+  assetId: string;
+  filename: string | null;
+  creatorAnonId: string;
+  creatorKycStatus: string;
+  status: string;
+  createdAt: Date;
+}
+
+/** Submissions on a request, visible only to the account that posted it. */
+export async function listSubmissionsForReview(
+  requesterCreatorId: string,
+  requestId: string,
+  q: Queryable = db,
+): Promise<ReviewSubmissionRow[]> {
+  const rows = await q.query<{
+    submission_id: string;
+    asset_id: string;
+    filename: string | null;
+    creator_anon_id: string;
+    creator_kyc_status: string;
+    status: string;
+    created_at: Date;
+  }>(
+    `SELECT s.id AS submission_id, s.asset_id, a.filename,
+            c.anon_id AS creator_anon_id, c.kyc_status AS creator_kyc_status,
+            s.status, s.created_at
+     FROM submission s
+     JOIN data_request r ON r.id = s.data_request_id
+     JOIN asset a ON a.id = s.asset_id
+     JOIN creator c ON c.id = a.creator_id
+     WHERE s.data_request_id = $2 AND r.requester_creator_id = $1
+     ORDER BY s.created_at ASC`,
+    [requesterCreatorId, requestId],
+  );
+  return rows.rows.map((row) => ({
+    submissionId: row.submission_id,
+    assetId: row.asset_id,
+    filename: row.filename,
+    creatorAnonId: row.creator_anon_id,
+    creatorKycStatus: row.creator_kyc_status,
+    status: row.status,
+    createdAt: row.created_at,
+  }));
+}
+
+/**
+ * Accept or reject a pending submission. Only the request owner may review,
+ * and a decision is final — acceptance is what feeds the deliverable, so it
+ * must never silently flip back to pending.
+ */
+export async function reviewSubmission(
+  requesterCreatorId: string,
+  submissionId: string,
+  decision: "accepted" | "rejected",
+): Promise<void> {
+  await withTransaction(async (tx) => {
+    const updated = await tx.query<{ id: string; asset_id: string; data_request_id: string }>(
+      `UPDATE submission s
+       SET status = $3, reviewed_at = now()
+       FROM data_request r
+       WHERE s.id = $1 AND r.id = s.data_request_id
+         AND r.requester_creator_id = $2
+         AND s.status = 'pending'
+       RETURNING s.id, s.asset_id, s.data_request_id`,
+      [submissionId, requesterCreatorId, decision],
+    );
+    const row = updated.rows[0];
+    if (!row) {
+      throw new RequestError("no pending submission to review — decisions are final");
+    }
+
+    const store = new PgAssetStore(tx);
+    await store.appendEvent({
+      assetId: row.asset_id,
+      eventType: decision === "accepted" ? EVENT.SUBMISSION_ACCEPTED : EVENT.SUBMISSION_REJECTED,
+      idempotencyKey: `review:${row.id}`,
+      payload: { dataRequestId: row.data_request_id, submissionId: row.id, decision },
+    });
+  });
+}
+
+/** Close an open request; submissions stop, pending ones stay reviewable. */
+export async function closeRequest(
+  requesterCreatorId: string,
+  requestId: string,
+  q: Queryable = db,
+): Promise<void> {
+  const closed = await q.query<{ id: string }>(
+    `UPDATE data_request SET status = 'closed'
+     WHERE id = $1 AND requester_creator_id = $2 AND status = 'open'
+     RETURNING id`,
+    [requestId, requesterCreatorId],
+  );
+  if (!closed.rows[0]) throw new RequestError("no open request of yours to close");
 }
 
 export interface EligibleAsset {
@@ -102,13 +273,30 @@ export async function submitAsset(
   assetId: string,
 ): Promise<void> {
   await withTransaction(async (tx) => {
-    const request = await tx.query<{ status: string; license_preset: string }>(
-      "SELECT status, license_preset FROM data_request WHERE id = $1",
+    const request = await tx.query<{
+      status: string;
+      license_preset: string;
+      kyc_required: boolean;
+      deadline: Date | null;
+    }>(
+      "SELECT status, license_preset, kyc_required, deadline FROM data_request WHERE id = $1",
       [requestId],
     );
     if (!request.rows[0]) throw new RequestError("request not found");
     if (request.rows[0].status !== "open") {
       throw new RequestError("this request is no longer accepting submissions");
+    }
+    if (request.rows[0].deadline && request.rows[0].deadline.getTime() <= Date.now()) {
+      throw new RequestError("this request's deadline has passed");
+    }
+    if (request.rows[0].kyc_required) {
+      const kyc = await tx.query<{ kyc_status: string }>(
+        "SELECT kyc_status FROM creator WHERE id = $1",
+        [creatorId],
+      );
+      if (kyc.rows[0]?.kyc_status !== "verified") {
+        throw new RequestError("this request requires KYC-verified creators");
+      }
     }
 
     const eligible = await tx.query<{ id: string }>(
