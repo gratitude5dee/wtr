@@ -26,24 +26,28 @@ export const STAGE_TONE: Record<string, "default" | "secondary" | "destructive" 
   FAILED_REGISTER: "destructive",
 };
 
-/** Event log types in the creator's words, not ours. */
+/** Event log types (pipeline `EVENT` values) in the creator's words, not ours. */
 export const EVENT_LABEL: Record<string, string> = {
-  INGESTED: "Added to your tray",
-  LABELS_PROPOSED: "Labels suggested",
-  LABELS_CONFIRMED: "Labels confirmed",
-  MEDIA_ENCRYPTED_UPLOADED: "Encrypted and stored",
-  TRACE_REGISTERED: "Provenance recorded",
-  IP_REGISTERED: "Rights registered on-chain",
-  CDR_VAULT_ALLOCATED: "Access gate created",
-  REGISTER_FAILED: "Registration hit an error",
-  LISTED: "Listed for sale",
-  LICENSE_MINTED: "A buyer licensed this",
-  SALE_RECORDED: "Sale recorded",
-  PAYMENT_CREDITED: "Payment credited",
+  "asset.ingested": "Added to your tray",
+  "asset.labeled": "Labels confirmed",
+  "asset.media_encrypted_uploaded": "Encrypted and stored",
+  "asset.trace_registered": "Provenance recorded",
+  "asset.ip_registered": "Rights registered on-chain",
+  "asset.cdr_vault_allocated": "Access gate created",
+  "asset.register_failed": "Registration hit an error",
+  "asset.listed": "Listed for sale",
+  "asset.sold": "A buyer licensed this",
+  "asset.payout_credited": "Payment credited",
+  "asset.settled": "Settled",
+  "asset.license_changed": "License changed",
+  "asset.takedown": "Withdrawn from sale",
+  "asset.duplicate_claim_flagged": "Duplicate claim raised for review",
+  "creator.consent_changed": "Consent updated",
+  "creator.kyc_changed": "Identity check updated",
 };
 
 export function eventLabel(eventType: string): string {
-  return EVENT_LABEL[eventType] ?? eventType.toLowerCase().replaceAll("_", " ");
+  return EVENT_LABEL[eventType] ?? eventType.replace(/^[a-z]+\./, "").replaceAll("_", " ");
 }
 
 /** Plain-language license line (goal.md §8.4). Never a licenseTermsId. */

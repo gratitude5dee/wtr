@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { UploadQueue } from "@/components/dashboard/upload-queue";
 import { hasCurrentConsent } from "@/lib/consent/service";
 import { getCurrentCreator } from "@/lib/dashboard/queries";
 
@@ -12,12 +13,9 @@ export default async function UploadPage() {
   if (!creator || !(await hasCurrentConsent(creator.id))) redirect("/onboarding");
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <h1 className="text-xl font-semibold">Upload</h1>
-      <p className="text-sm text-muted-foreground">
-        The drop zone lands with the next slice (P0-2): files are hashed in your browser
-        with SHA-256 before a single byte leaves your device.
-      </p>
+      <UploadQueue />
     </div>
   );
 }
