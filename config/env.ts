@@ -78,3 +78,15 @@ export const AUTH_DOMAIN = () => optional("WTR_AUTH_DOMAIN", "localhost:3000");
 
 /** Where server-held ciphertext and public previews live on disk. */
 export const MEDIA_DIR = () => optional("WTR_MEDIA_DIR", "var/media");
+
+// Tier-2 semantic labeling (goal.md P0-3). Unset key/model = tier 2 off:
+// jobs are recorded as awaiting_model instead of inventing labels.
+export const TIER2_API_URL = () => optional("WTR_TIER2_API_URL", "https://api.openai.com/v1");
+export const TIER2_API_KEY = () => process.env.WTR_TIER2_API_KEY ?? "";
+export const TIER2_MODEL = () => process.env.WTR_TIER2_MODEL ?? "";
+
+/** Model labels below this confidence are surfaced for creator confirmation. */
+export const LABEL_CONFIRM_THRESHOLD = (): number => {
+  const raw = Number(process.env.WTR_LABEL_CONFIRM_THRESHOLD ?? "0.8");
+  return Number.isFinite(raw) && raw >= 0 && raw <= 1 ? raw : 0.8;
+};

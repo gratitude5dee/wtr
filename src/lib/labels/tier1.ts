@@ -11,6 +11,7 @@
 import { db, type Queryable } from "../db/pool";
 import type { LabelInput } from "../pipeline/store";
 import type { Modality } from "../upload/modality";
+import { HASH64_HEX } from "./perceptual-hash";
 
 export const TIER1_NAMESPACE = "wtr";
 
@@ -51,6 +52,9 @@ const MEASURED_KEYS: Record<string, { min: number; max: number; integer: boolean
   height: { min: 1, max: 1_000_000, integer: true },
 };
 
+/** 64-bit perceptual hashes, sent as 16 lowercase hex characters. */
+const HASH_KEYS = new Set(["ahash64", "dhash64", "phash64"]);
+
 /** Bad input, safe to echo to the caller. */
 export class MeasuredLabelError extends Error {}
 
@@ -60,6 +64,19 @@ export function validateMeasuredLabels(payload: unknown): LabelInput[] {
   }
   const labels: LabelInput[] = [];
   for (const [key, value] of Object.entries(payload)) {
+    if (HASH_KEYS.has(key)) {
+      if (typeof value !== "string" || !HASH64_HEX.test(value)) {
+        throw new MeasuredLabelError(`'${key}' must be 16 lowercase hex characters`);
+      }
+      labels.push({
+        namespace: TIER1_NAMESPACE,
+        key,
+        value,
+        source: "model",
+        confidence: 1,
+      });
+      continue;
+    }
     // Own-property check: a plain index would resolve inherited names like
     // 'toString' (and JSON.parse produces own '__proto__' keys) to truthy
     // values, silently bypassing the allowlist.
@@ -99,8 +116,8 @@ export async function applyTier1Labels(
 ): Promise<void> {
   for (const label of labels) {
     await q.query(
-      `INSERT INTO asset_label (asset_id, namespace, key, value, source, confidence)
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6)
+      `INSERT INTO asset_label (asset_id, namespace, key, value, source, confidence, model_id)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
        ON CONFLICT (asset_id, namespace, key) DO NOTHING`,
       [
         assetId,
@@ -109,6 +126,7 @@ export async function applyTier1Labels(
         JSON.stringify(label.value),
         label.source,
         label.confidence ?? null,
+        label.modelId ?? null,
       ],
     );
   }

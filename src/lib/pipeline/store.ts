@@ -43,6 +43,8 @@ export interface LabelInput {
   value: unknown;
   source: "human" | "model" | "import" | "creator";
   confidence?: number;
+  /** Which model produced the label (tier-2 semantic labels). */
+  modelId?: string;
 }
 
 export interface ListingRow {

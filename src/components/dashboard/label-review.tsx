@@ -21,10 +21,13 @@ export function LabelReview({
   assetId,
   labels,
   editable,
+  confirmThreshold = 0.8,
 }: {
   assetId: string;
   labels: AssetLabelRow[];
   editable: boolean;
+  /** Model labels below this confidence are flagged for confirmation. */
+  confirmThreshold?: number;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -36,6 +39,10 @@ export function LabelReview({
         <ul className="space-y-2">
           {labels.map((label) => {
             const isUnconfirmedModel = label.source === "model" && !label.confirmedByCreator;
+            const needsReview =
+              isUnconfirmedModel &&
+              label.confidence !== null &&
+              label.confidence < confirmThreshold;
             return (
               <li key={label.id} className="flex items-center justify-between gap-3 text-sm">
                 <span className="min-w-0 truncate">
@@ -43,7 +50,9 @@ export function LabelReview({
                   {labelText(label.value)}
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
-                  {isUnconfirmedModel ? (
+                  {needsReview ? (
+                    <Badge variant="destructive">needs review</Badge>
+                  ) : isUnconfirmedModel ? (
                     <Badge variant="outline">machine-generated</Badge>
                   ) : (
                     <Badge variant="secondary">confirmed by you</Badge>
