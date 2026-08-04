@@ -57,7 +57,7 @@ export async function registrationReadiness(
   if (!process.env.WTR_WALLET_PRIVATE_KEY) {
     blockers.push("the operator wallet is not configured on this server");
   }
-  if (!process.env.WTR_TRACE_API_KEY) {
+  if (TRACE_MODE() === "live" && !process.env.WTR_TRACE_API_KEY) {
     blockers.push("the Trace provider key is not configured on this server");
   }
   return { ready: blockers.length === 0, blockers, stage: row.stage };
@@ -89,12 +89,8 @@ export async function registerAsset(creatorId: string, assetId: string): Promise
   const { preset, askPriceWei } = choice;
 
   const clients = await createClients();
-  const trace = new TraceClient({
-    baseUrl: TRACE_BASE_URL(),
-    apiKey: TRACE_API_KEY(),
-    provider: TRACE_PROVIDER(),
-  });
-  const ports = createPorts({ clients, trace, mediaDir: MEDIA_DIR() });
+  const trace = createTraceClient();
+  const ports = createPorts({ clients, trace, traceMock: isTraceMock(), mediaDir: MEDIA_DIR() });
   // Browser-uploaded assets exist server-side only as ciphertext (the
   // original was sealed on the creator's device). Stage 3a therefore uploads
   // the server-held ciphertext file — the plaintext never touches WTR.

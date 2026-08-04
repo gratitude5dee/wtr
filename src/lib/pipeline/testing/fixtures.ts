@@ -114,13 +114,14 @@ export async function makeFixture(options: FixtureOptions = {}): Promise<Fixture
       },
     },
     trace: {
+      mock: false,
       async registerData() {
         guard("trace.registerData");
-        return { dataId: "trace-data-1", initialMetadataRoot: `0x${"c".repeat(64)}` };
+        return { dataId: "trace-data-1", initialMetadataRoot: `sha256:${"c".repeat(64)}` as const };
       },
       async updateMetadata({ updateCount }) {
         guard("trace.updateMetadata");
-        return { metadataRoot: `0x${"d".repeat(64)}`, updateCount: updateCount + 1 };
+        return { metadataRoot: `sha256:${"d".repeat(64)}` as const, updateCount: updateCount + 1 };
       },
     },
     story: {

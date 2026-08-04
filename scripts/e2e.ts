@@ -21,13 +21,8 @@ import { createStageHandlers, runPipeline } from "../src/lib/pipeline";
 import { createPorts } from "../src/lib/pipeline/adapters";
 import { PgAssetStore } from "../src/lib/pipeline/pg-store";
 import type { LicensePreset } from "../src/lib/story/license-presets";
-import { TraceClient } from "../src/lib/trace/client";
+import { createTraceClient, isTraceMock } from "../src/lib/trace/factory";
 import { WIP_TOKEN_ADDRESS } from "../config/chain";
-import {
-  TRACE_API_KEY,
-  TRACE_BASE_URL,
-  TRACE_PROVIDER,
-} from "../config/env";
 
 const PRESET: LicensePreset = "WTR-TRAIN-NONEXCLUSIVE";
 const ASK_PRICE_WEI = 10_000_000_000_000_000n; // 0.01 $WIP
@@ -76,14 +71,14 @@ async function main(): Promise<void> {
   if (!filePath) throw new Error("usage: npm run e2e -- path/to/audio.wav");
 
   const clients = await createClients();
-  const trace = new TraceClient({
-    baseUrl: TRACE_BASE_URL(),
-    apiKey: TRACE_API_KEY(),
-    provider: TRACE_PROVIDER(),
-  });
+  const trace = createTraceClient();
+  if (isTraceMock()) {
+    log.warn("e2e running with TRACE MOCK: data_id below is simulated, not a real audit record");
+  }
   const ports = createPorts({
     clients,
     trace,
+    traceMock: isTraceMock(),
     mediaDir: path.dirname(path.resolve(filePath)),
   });
   const store = new PgAssetStore(db);

@@ -116,7 +116,12 @@ export function createRegisterHandler(deps: StageDeps): StageHandler {
           providerPayload: { stage: "REGISTERED", ipfs_cid: cid },
         });
         const batchId = await stableBatchId({ action: "trace.register", assetId });
-        const registered = await deps.ports.trace.registerData({ document, batchId });
+        const registered = await deps.ports.trace.registerData({
+          document,
+          sourceRecordId: assetId,
+          occurredAt: deps.now().toISOString(),
+          batchId,
+        });
         await deps.store.appendEvent({
           assetId,
           eventType: EVENT.TRACE_REGISTERED,
@@ -125,6 +130,7 @@ export function createRegisterHandler(deps: StageDeps): StageHandler {
             data_id: registered.dataId,
             initial_metadata_root: registered.initialMetadataRoot,
             batch_id: batchId,
+            ...(deps.ports.trace.mock ? { trace_mock: true } : {}),
           },
         });
         await deps.store.updateAssetProjection(assetId, {

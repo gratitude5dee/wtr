@@ -29,6 +29,17 @@ export const TRACE_BASE_URL = () =>
 /** Trace provider API key — sent as `X-API-Key`. Blocked-on Q1. */
 export const TRACE_API_KEY = () => required("WTR_TRACE_API_KEY");
 
+/**
+ * `live` calls the real Trace API and requires `WTR_TRACE_API_KEY`; `mock`
+ * simulates the documented endpoints in-process (WTR is on the provider
+ * waitlist). Defaults to `live` when a key is configured, `mock` otherwise.
+ */
+export const TRACE_MODE = (): "live" | "mock" => {
+  const mode = process.env.WTR_TRACE_MODE;
+  if (mode === "live" || mode === "mock") return mode;
+  return process.env.WTR_TRACE_API_KEY ? "live" : "mock";
+};
+
 /** Provider slug sent as `X-Provider`. */
 export const TRACE_PROVIDER = () => optional("WTR_TRACE_PROVIDER", "wtr");
 
