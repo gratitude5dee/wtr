@@ -4,7 +4,7 @@
  * `getReadFee` are live reads performed by the CDR SDK on every call
  * (goal.md §12).
  */
-import { CDRClient, GatewayProvider, type StorageProvider } from "@piplabs/cdr-sdk";
+import { CDRClient, GatewayProvider, initWasm, type StorageProvider } from "@piplabs/cdr-sdk";
 import { StoryClient } from "@story-protocol/core-sdk";
 import { createPublicClient, createWalletClient, http, type PublicClient, type WalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -22,7 +22,11 @@ export interface WtrClients {
 }
 
 /** Builds every client from the operator private key. The key never leaves this function. */
-export function createClients(): WtrClients {
+export async function createClients(): Promise<WtrClients> {
+  // The CDR SDK's encrypt/decrypt primitives are WASM-backed and throw
+  // opaque errors unless the module is initialized first.
+  await initWasm();
+
   const account = privateKeyToAccount(WALLET_PRIVATE_KEY());
 
   const publicClient = createPublicClient({ chain: CHAIN, transport: http(RPC_URL) }) as PublicClient;

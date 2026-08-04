@@ -37,7 +37,7 @@ async function existingCollection(): Promise<`0x${string}` | null> {
 }
 
 async function main(): Promise<void> {
-  const clients = createClients();
+  const clients = await createClients();
   const story = createStoryPort({ clients });
 
   // ---------------------------------------------------------- SPG collection
