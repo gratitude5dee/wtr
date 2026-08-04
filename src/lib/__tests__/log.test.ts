@@ -66,8 +66,10 @@ describe("log redaction", () => {
     expect(redactText(`decrypting with ${KEY_HEX}`)).toBe(`decrypting with ${REDACTED}`);
   });
 
-  it("keeps operational identifiers readable", () => {
+  it("keeps operational identifiers readable, in either spelling", () => {
     const txHash = `0x${"12".repeat(32)}`;
+    // A content address published to IPFS: an operator has to be able to fetch it.
+    const uri = "https://ipfs.io/ipfs/bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy";
     const output = redact({
       assetId: "asset-1",
       ipId: "0xabc",
@@ -75,6 +77,8 @@ describe("log redaction", () => {
       // Hash-shaped but must stay legible, or an on-chain failure is untraceable.
       txHash,
       metadata_root: txHash,
+      metadataRoot: txHash,
+      uri,
     });
 
     expect(output).toEqual({
@@ -83,7 +87,19 @@ describe("log redaction", () => {
       licenseTokenIds: ["1", "2"],
       txHash,
       metadata_root: txHash,
+      metadataRoot: txHash,
+      uri,
     });
+  });
+
+  it("does not swallow a whole URL path when scrubbing free text", () => {
+    // Redacting the whole URL would leave an operator unable to fetch the
+    // document the log line is about.
+    const scrubbed = redactText(
+      `publish failed for https://ipfs.io/ipfs/bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy`,
+    );
+
+    expect(scrubbed).toContain("https://ipfs.io/ipfs/");
   });
 
   it("serialises bigints without precision loss", () => {

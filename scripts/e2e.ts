@@ -16,7 +16,7 @@ import { createClients } from "../src/lib/chain/clients";
 import { encodeLicenseAccessAuxData } from "../src/lib/chain/conditions";
 import { sha256Bytes, stripHexPrefix } from "../src/lib/crypto/canonical";
 import { closePool, db } from "../src/lib/db/pool";
-import { log } from "../src/lib/log";
+import { log, redactText } from "../src/lib/log";
 import { createStageHandlers, runPipeline } from "../src/lib/pipeline";
 import { createPorts } from "../src/lib/pipeline/adapters";
 import { PgAssetStore } from "../src/lib/pipeline/pg-store";
@@ -110,7 +110,7 @@ async function main(): Promise<void> {
     console.log(
       `${result.stage.padEnd(16)} ${result.status}` +
         (result.performed.length ? ` performed=${result.performed.join(",")}` : "") +
-        (result.error ? ` error=${result.error.name}: ${result.error.message}` : ""),
+        (result.error ? ` error=${result.error.name}: ${redactText(result.error.message)}` : ""),
     );
   }
   const failed = results.find((result) => result.status === "failed");
@@ -151,7 +151,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (error) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(redactText(error instanceof Error ? error.message : String(error)));
   await closePool().catch(() => {});
   process.exit(1);
 });

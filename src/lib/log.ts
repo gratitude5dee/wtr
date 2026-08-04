@@ -29,18 +29,31 @@ const SECRET_KEY_PATTERN =
 
 /**
  * Key material by shape rather than by name: a 32-byte-or-longer hex run (a
- * private key, a data key) or a comparably long base64 run. A 20-byte address
+ * private key, a data key) or a 32-byte-or-longer base64 run. A 20-byte address
  * (40 nibbles) stays below the bound and remains readable.
+ *
+ * `/` is deliberately excluded from the base64 alphabet so a run cannot span
+ * path separators — otherwise a whole URL path collapses into one `[redacted]`
+ * and an operator can no longer tell which document was published. A base64
+ * secret containing `/` is therefore matched in pieces, which still redacts it
+ * as long as a piece reaches the bound.
  */
-const SECRET_VALUE_PATTERN = /(0x)?[0-9a-f]{64,}|[A-Za-z0-9+/_-]{60,}={0,2}/gi;
+const SECRET_VALUE_PATTERN = /(0x)?[0-9a-f]{64,}|[A-Za-z0-9+_-]{43,}={0,2}/gi;
 
 /**
- * Identifiers that are hash-shaped but are meant to be read: without this a tx
- * hash and a 32-byte secret key are indistinguishable by shape, and losing tx
- * hashes from the logs would make on-chain failures untraceable.
+ * Identifiers that are secret-shaped but are meant to be read: without this a
+ * tx hash and a 32-byte secret key are indistinguishable by shape, and losing
+ * tx hashes or content addresses from the logs would make an on-chain failure
+ * untraceable and a published document unfetchable.
  */
-const READABLE_KEY_PATTERN =
-  /^(.*_)?(txhash|tx_hash|hash|ipid|ip_id|address|owner|cid|uuid|root|sha256|digest|id|ids)$/i;
+const READABLE_SUFFIX_PATTERN =
+  /(^|_)(tx_hash|hash|ip_id|id|ids|address|owner|cid|cids|uuid|root|sha256|digest|uri|url|explorer)$/;
+
+/** Matches `metadataRoot` as well as `metadata_root`: both spellings occur here. */
+function isReadableIdentifier(key: string): boolean {
+  const snake = key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+  return READABLE_SUFFIX_PATTERN.test(snake);
+}
 
 export const REDACTED = "[redacted]";
 
@@ -70,7 +83,7 @@ function redactValue(value: unknown, depth = 0): unknown {
     if (SECRET_KEY_PATTERN.test(key)) {
       out[key] = REDACTED;
     } else if (typeof entry === "string") {
-      out[key] = READABLE_KEY_PATTERN.test(key) ? entry : redactText(entry);
+      out[key] = isReadableIdentifier(key) ? entry : redactText(entry);
     } else {
       out[key] = redactValue(entry, depth + 1);
     }
