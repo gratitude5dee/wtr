@@ -38,7 +38,7 @@ export async function withdrawAsset(
     if (already.rows[0]) throw new TakedownError("this asset is already withdrawn");
 
     await tx.query(
-      `UPDATE listing SET status = 'withdrawn'
+      `UPDATE listing SET status = 'withdrawn', updated_at = now()
        WHERE asset_id = $1 AND status IN ('active', 'paused')`,
       [assetId],
     );
