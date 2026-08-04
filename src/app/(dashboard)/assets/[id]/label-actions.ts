@@ -24,7 +24,9 @@ export async function setLabelAction(assetId: string, formData: FormData): Promi
   if (!creator) return;
   const key = String(formData.get("key") ?? "").trim();
   const value = String(formData.get("value") ?? "").trim();
-  const namespace = String(formData.get("namespace") ?? "creator").trim() || "creator";
+  // Default to the pipeline's namespace so corrections upsert over the
+  // machine label instead of creating a parallel row.
+  const namespace = String(formData.get("namespace") ?? "wtr").trim() || "wtr";
   if (!key || !value) return;
   await setCreatorLabel(creator.id, assetId, { namespace, key, value });
   revalidatePath(`/assets/${assetId}`);

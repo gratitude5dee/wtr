@@ -41,7 +41,7 @@ export interface LabelInput {
   namespace: string;
   key: string;
   value: unknown;
-  source: "human" | "model" | "import";
+  source: "human" | "model" | "import" | "creator";
   confidence?: number;
 }
 
