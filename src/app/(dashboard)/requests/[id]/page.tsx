@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CloseRequestButton, ReviewControls } from "@/components/dashboard/review-controls";
 import { SubmissionControls } from "@/components/dashboard/submission-row";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { formatIp, PRESET_NAME, PRESET_SENTENCE } from "@/lib/dashboard/format";
 import { getCurrentCreator } from "@/lib/dashboard/queries";
-import { eligibleAssets, getRequest } from "@/lib/requests/service";
+import { eligibleAssets, getRequest, listSubmissionsForReview } from "@/lib/requests/service";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,9 @@ export default async function RequestDetailPage({
   if (!creator) notFound();
   const request = await getRequest(id).catch(() => null);
   if (!request) notFound();
-  const assets = await eligibleAssets(creator.id, request.id);
+  const isRequester = request.requesterCreatorId === creator.id;
+  const assets = isRequester ? [] : await eligibleAssets(creator.id, request.id);
+  const submissions = isRequester ? await listSubmissionsForReview(creator.id, request.id) : [];
 
   const specEntries = Object.entries(request.spec).filter(
     ([, value]) => typeof value === "string" || typeof value === "number",
@@ -41,6 +44,10 @@ export default async function RequestDetailPage({
         <Badge variant={request.status === "open" ? "default" : "outline"}>
           {request.status}
         </Badge>
+        {isRequester && <Badge variant="secondary">your request</Badge>}
+        {isRequester && request.status === "open" && (
+          <CloseRequestButton requestId={request.id} />
+        )}
       </div>
 
       <Card>
@@ -58,6 +65,21 @@ export default async function RequestDetailPage({
           </div>
           <p>
             Budget: <span className="font-mono text-xs">{formatIp(request.budgetWei)}</span>
+            {request.unitPriceWei !== null && (
+              <>
+                {" \u00b7 "}per item{" "}
+                <span className="font-mono text-xs">{formatIp(request.unitPriceWei)}</span>
+              </>
+            )}
+            {request.deadline && (
+              <>
+                {" \u00b7 "}deadline{" "}
+                <span className="font-mono text-xs">
+                  {request.deadline.toISOString().slice(0, 16).replace("T", " ")} UTC
+                </span>
+              </>
+            )}
+            {request.kycRequired && " \u00b7 KYC-verified creators only"}
           </p>
           {specEntries.length > 0 && (
             <dl className="space-y-1">
@@ -72,6 +94,59 @@ export default async function RequestDetailPage({
         </CardContent>
       </Card>
 
+      {isRequester ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Submissions to review</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <p className="mb-4 text-muted-foreground">
+              Accepting a submission is final — accepted work feeds the deliverable.
+              Only creators whose listings match your license terms could submit.
+            </p>
+            {submissions.length === 0 ? (
+              <p className="text-muted-foreground">No submissions yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Work</TableHead>
+                    <TableHead>Creator</TableHead>
+                    <TableHead>KYC</TableHead>
+                    <TableHead className="text-right">Decision</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {submissions.map((submission) => (
+                    <TableRow key={submission.submissionId}>
+                      <TableCell>{submission.filename ?? submission.assetId.slice(0, 8)}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {submission.creatorAnonId}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            submission.creatorKycStatus === "verified" ? "default" : "outline"
+                          }
+                        >
+                          {submission.creatorKycStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <ReviewControls
+                          requestId={request.id}
+                          submissionId={submission.submissionId}
+                          status={submission.status}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
       <Card>
         <CardHeader>
           <CardTitle>Your qualifying work</CardTitle>
@@ -118,6 +193,7 @@ export default async function RequestDetailPage({
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

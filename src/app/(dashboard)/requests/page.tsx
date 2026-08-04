@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -20,7 +21,12 @@ export default async function RequestsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Lab data requests</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Lab data requests</h1>
+        <Button asChild size="sm">
+          <Link href="/requests/new">Post a request</Link>
+        </Button>
+      </div>
       {requests.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No open requests right now. When a lab posts a brief your qualifying assets will

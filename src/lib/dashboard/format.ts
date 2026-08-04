@@ -44,6 +44,8 @@ export const EVENT_LABEL: Record<string, string> = {
   "asset.duplicate_claim_flagged": "Duplicate claim raised for review",
   "asset.submitted_to_request": "Submitted to a lab request",
   "asset.submission_withdrawn": "Submission withdrawn",
+  "asset.submission_accepted": "Submission accepted by the lab",
+  "asset.submission_rejected": "Submission declined by the lab",
   "creator.consent_changed": "Consent updated",
   "creator.kyc_changed": "Identity check updated",
 };
