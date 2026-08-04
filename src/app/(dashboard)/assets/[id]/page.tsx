@@ -17,6 +17,10 @@ import {
   STAGE_TONE,
 } from "@/lib/dashboard/format";
 import { getAssetDetail, getCurrentCreator } from "@/lib/dashboard/queries";
+import { getLicenseChoice } from "@/lib/listing/service";
+import { formatWei } from "@/lib/money";
+
+import { LicensePicker } from "@/components/dashboard/license-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +68,8 @@ export default async function AssetDetailPage({
   if (!asset) notFound();
 
   const preset = asset.listing?.licensePreset ?? null;
+  const choice = await getLicenseChoice(asset.id);
+  const choiceEditable = asset.stage === "IN_TRAY" || asset.stage === "LABELED";
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -106,7 +112,7 @@ export default async function AssetDetailPage({
         <CardHeader>
           <CardTitle>License</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm">
+        <CardContent className="space-y-4 text-sm">
           {preset ? (
             <div className="space-y-1">
               <div className="font-medium">{PRESET_NAME[preset] ?? preset}</div>
@@ -117,11 +123,43 @@ export default async function AssetDetailPage({
                 </p>
               )}
             </div>
+          ) : choiceEditable ? (
+            <>
+              <p className="text-muted-foreground">
+                Choose how labs may use this before it gets registered. Your choice is
+                sealed into the on-chain terms at registration.
+              </p>
+              <LicensePicker
+                assetId={asset.id}
+                currentPreset={choice.preset}
+                currentAskIp={choice.askPriceWei === null ? null : formatWei(choice.askPriceWei)}
+              />
+            </>
           ) : (
             <p className="text-muted-foreground">Not listed yet — no license terms attached.</p>
           )}
         </CardContent>
       </Card>
+
+      {choiceEditable && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Registration</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              Registration encrypts your original on your device, records provenance,
+              registers your rights on-chain, and creates the license-gated access
+              vault — in that order. Nothing is sold before all four complete.
+            </p>
+            <p>
+              {choice.preset
+                ? "Your license choice above will be sealed into the registration."
+                : "Choose a license above first — registration needs it."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
