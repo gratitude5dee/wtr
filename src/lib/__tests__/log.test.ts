@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { REDACTED, redact } from "../log";
+import { REDACTED, redact, redactText } from "../log";
 import { formatWei, toWei, weiFromDb, weiToDb } from "../money";
+
+/** A 32-byte key: indistinguishable from a tx hash by shape alone. */
+const KEY_HEX = `0x${"ab".repeat(32)}`;
 
 describe("log redaction", () => {
   it("redacts anything key-shaped", () => {
@@ -29,10 +32,58 @@ describe("log redaction", () => {
     expect(output.media).toBe("[bytes len=4]");
   });
 
-  it("keeps operational identifiers readable", () => {
-    const output = redact({ assetId: "asset-1", ipId: "0xabc", licenseTokenIds: ["1", "2"] });
+  it("redacts the private key under the name this project actually uses", () => {
+    const output = redact({ WTR_WALLET_PRIVATE_KEY: KEY_HEX, private_key: KEY_HEX });
 
-    expect(output).toEqual({ assetId: "asset-1", ipId: "0xabc", licenseTokenIds: ["1", "2"] });
+    expect(output.WTR_WALLET_PRIVATE_KEY).toBe(REDACTED);
+    expect(output.private_key).toBe(REDACTED);
+  });
+
+  it("redacts key-shaped values under field names it has never seen", () => {
+    // Field names are open-ended, so the shape of the value has to be enough.
+    for (const key of ["k", "sk", "pk", "signingKey", "keyMaterial", "wrappedDek", "blob", "raw"]) {
+      expect(redact({ [key]: KEY_HEX })[key]).toBe(REDACTED);
+    }
+    expect(redact({ somethingNobodyAnticipated: KEY_HEX }).somethingNobodyAnticipated).toBe(
+      REDACTED,
+    );
+  });
+
+  it("redacts key material carried inside third-party error text", () => {
+    // Stage handlers log `{ error: failure.message }`, and we do not control an
+    // SDK's error wording.
+    const output = redact({
+      error: `rpc rejected signature for key ${KEY_HEX}`,
+      cause: new Error(`vault write failed: dataKey=${KEY_HEX}`),
+    });
+
+    expect(output.error).not.toContain(KEY_HEX);
+    expect(JSON.stringify(output.cause)).not.toContain(KEY_HEX);
+    expect(output.error).toContain("rpc rejected signature");
+  });
+
+  it("redacts key material in the log message itself", () => {
+    expect(redactText(`decrypting with ${KEY_HEX}`)).toBe(`decrypting with ${REDACTED}`);
+  });
+
+  it("keeps operational identifiers readable", () => {
+    const txHash = `0x${"12".repeat(32)}`;
+    const output = redact({
+      assetId: "asset-1",
+      ipId: "0xabc",
+      licenseTokenIds: ["1", "2"],
+      // Hash-shaped but must stay legible, or an on-chain failure is untraceable.
+      txHash,
+      metadata_root: txHash,
+    });
+
+    expect(output).toEqual({
+      assetId: "asset-1",
+      ipId: "0xabc",
+      licenseTokenIds: ["1", "2"],
+      txHash,
+      metadata_root: txHash,
+    });
   });
 
   it("serialises bigints without precision loss", () => {

@@ -123,7 +123,9 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (error) => {
-  console.error(error);
+  // `error.message` only: a raw SDK error object can carry request state that
+  // has never passed through the redacting logger.
+  console.error(error instanceof Error ? error.message : error);
   await closePool().catch(() => {});
   process.exit(1);
 });
