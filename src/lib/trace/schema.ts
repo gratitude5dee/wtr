@@ -14,7 +14,7 @@ export const TRACE_SCHEMA = "trace-v1.0" as const;
 export interface TraceContributor {
   /** Stable pseudonym. Never a name, email or handle. */
   anon_id: string;
-  kyc_status: "none" | "pending" | "verified" | "rejected";
+  kyc_status: "unverified" | "pending" | "verified" | "failed";
   consent: {
     document_version: string;
     document_sha256: string;
