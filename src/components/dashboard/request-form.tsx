@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +22,9 @@ export function RequestForm() {
     createRequestAction,
     { error: null },
   );
+  // datetime-local strings carry no offset — convert to a UTC instant in the
+  // poster's browser so the server never guesses a timezone.
+  const [deadlineIso, setDeadlineIso] = useState("");
 
   return (
     <form action={formAction} className="space-y-4 text-sm">
@@ -89,7 +92,16 @@ export function RequestForm() {
 
       <div className="space-y-2">
         <Label htmlFor="deadline">Deadline (optional)</Label>
-        <Input id="deadline" name="deadline" type="datetime-local" />
+        <Input
+          id="deadline"
+          type="datetime-local"
+          onChange={(event) => {
+            const local = event.target.value;
+            const parsed = new Date(local);
+            setDeadlineIso(local && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : "");
+          }}
+        />
+        <input type="hidden" name="deadline" value={deadlineIso} />
       </div>
 
       <div className="space-y-2">

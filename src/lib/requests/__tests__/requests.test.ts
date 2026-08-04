@@ -76,6 +76,7 @@ describe("createRequest", () => {
     [{ budgetWei: 0n }, /budget/],
     [{ unitPriceWei: -1n }, /per-item price/],
     [{ deadline: new Date(Date.now() - 1000) }, /deadline/],
+    [{ deadline: new Date("not-a-date") }, /valid deadline/],
   ] as const)("rejects bad input %#", async (patch, message) => {
     await expect(
       createRequest(requester, { ...validInput, ...patch }, fakeQueryable([{ id: "req-1" }])),

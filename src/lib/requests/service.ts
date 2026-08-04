@@ -99,8 +99,13 @@ export async function createRequest(
   if (input.unitPriceWei !== null && input.unitPriceWei <= 0n) {
     throw new RequestError("per-item price must be positive when set");
   }
-  if (input.deadline !== null && input.deadline.getTime() <= Date.now()) {
-    throw new RequestError("the deadline must be in the future");
+  if (input.deadline !== null) {
+    if (Number.isNaN(input.deadline.getTime())) {
+      throw new RequestError("enter a valid deadline");
+    }
+    if (input.deadline.getTime() <= Date.now()) {
+      throw new RequestError("the deadline must be in the future");
+    }
   }
   const rows = await q.query<{ id: string }>(
     `INSERT INTO data_request

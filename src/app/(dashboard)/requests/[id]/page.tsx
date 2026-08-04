@@ -73,7 +73,10 @@ export default async function RequestDetailPage({
             )}
             {request.deadline && (
               <>
-                {" \u00b7 "}deadline {request.deadline.toLocaleDateString()}
+                {" \u00b7 "}deadline{" "}
+                <span className="font-mono text-xs">
+                  {request.deadline.toISOString().slice(0, 16).replace("T", " ")} UTC
+                </span>
               </>
             )}
             {request.kycRequired && " \u00b7 KYC-verified creators only"}
