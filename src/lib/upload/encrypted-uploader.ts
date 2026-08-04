@@ -38,6 +38,7 @@ async function keyForAsset(assetId: string): Promise<{ key: CryptoKey; meta: Fil
 interface UploadStatus {
   totalBytes: number | null;
   received: number;
+  ivBase: string | null;
   complete: boolean;
 }
 
@@ -55,6 +56,14 @@ export async function uploadEncrypted(
   if (status.complete) {
     onProgress(totalCipherBytes, totalCipherBytes);
     return;
+  }
+  if (status.received > 0 && status.ivBase !== meta.ivBaseHex) {
+    // The upload was begun under different key material (e.g. localStorage
+    // was cleared, or a different browser). Appending chunks sealed with a
+    // new key would silently produce a permanently unopenable file.
+    throw new Error(
+      "this upload was started on another device or the key was cleared — it cannot be resumed here",
+    );
   }
 
   // Every chunk is plaintext CIPHER_CHUNK_BYTES + a GCM tag, so the resume
@@ -74,11 +83,12 @@ export async function uploadEncrypted(
     const headers: Record<string, string> = {
       "Content-Type": "application/octet-stream",
       "x-upload-offset": String(offset),
+      // Sent with every chunk so the server can reject key-material drift.
+      "x-upload-iv-base": meta.ivBaseHex,
     };
     if (offset === 0) {
       headers["x-upload-total-bytes"] = String(totalCipherBytes);
       headers["x-upload-chunk-bytes"] = String(sealedChunkBytes);
-      headers["x-upload-iv-base"] = meta.ivBaseHex;
     }
     const response = await fetch(`/api/assets/${assetId}/ciphertext`, {
       method: "PUT",

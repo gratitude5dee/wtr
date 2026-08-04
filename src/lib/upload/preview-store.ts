@@ -23,7 +23,11 @@ export class PreviewError extends Error {
 const MAX_PREVIEW_BYTES = 512 * 1024;
 const PREVIEW_MIME = "image/jpeg";
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** Asset ids come from the URL; only a UUID may ever touch the filesystem. */
 function previewPath(assetId: string): string {
+  if (!UUID.test(assetId)) throw new PreviewError("asset not found", 404);
   return path.join(MEDIA_DIR(), "previews", `${assetId}.jpg`);
 }
 
@@ -32,6 +36,7 @@ export async function storePreview(
   assetId: string,
   bytes: Uint8Array,
 ): Promise<string> {
+  if (!UUID.test(assetId)) throw new PreviewError("asset not found", 404);
   if (bytes.byteLength === 0) throw new PreviewError("empty preview");
   if (bytes.byteLength > MAX_PREVIEW_BYTES) {
     throw new PreviewError("preview too large — it must be degraded");
@@ -57,6 +62,7 @@ export async function storePreview(
 export async function readPreview(
   assetId: string,
 ): Promise<{ bytes: Buffer; mime: string } | null> {
+  if (!UUID.test(assetId)) return null;
   const rows = await db.query<{ preview_url: string | null }>(
     "SELECT preview_url FROM asset WHERE id = $1",
     [assetId],

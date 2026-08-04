@@ -126,8 +126,10 @@ export function UploadQueue() {
                 hashedBytes: Math.round((sent / total) * file.size),
               });
             });
-            const preview = await makeImagePreview(file);
-            if (preview) await uploadPreview(assetId, preview);
+            // A preview is nice-to-have: its failure must not mark a fully
+            // uploaded file as failed.
+            const preview = await makeImagePreview(file).catch(() => null);
+            if (preview) await uploadPreview(assetId, preview).catch(() => undefined);
           } catch (error) {
             patch(id, {
               status: "error",

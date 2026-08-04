@@ -24,9 +24,16 @@ export class CiphertextError extends Error {
 }
 
 const IV_BASE_HEX = /^[0-9a-f]{16}$/;
-const MAX_CHUNK_BYTES = 32 * 1024 * 1024;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const MAX_CHUNK_BYTES = 32 * 1024 * 1024;
+
+/** Asset ids come from the URL; only a UUID may ever touch the filesystem. */
+export function assertAssetId(assetId: string): void {
+  if (!UUID.test(assetId)) throw new CiphertextError("asset not found", 404);
+}
 
 function ciphertextPath(assetId: string): string {
+  assertAssetId(assetId);
   return path.join(MEDIA_DIR(), "ciphertext", `${assetId}.bin`);
 }
 
@@ -39,6 +46,7 @@ export interface UploadStatus {
 }
 
 export async function uploadStatus(creatorId: string, assetId: string): Promise<UploadStatus> {
+  assertAssetId(assetId);
   const rows = await db.query<{
     ciphertext_total_bytes: string | null;
     ciphertext_received: string;
@@ -103,6 +111,7 @@ export async function appendChunk(
   assetId: string,
   offset: number,
   chunk: Uint8Array,
+  ivBase: string,
 ): Promise<UploadStatus> {
   if (chunk.byteLength === 0) throw new CiphertextError("empty chunk");
   if (chunk.byteLength > MAX_CHUNK_BYTES) throw new CiphertextError("chunk too large");
@@ -110,6 +119,11 @@ export async function appendChunk(
   const status = await uploadStatus(creatorId, assetId);
   if (status.complete) throw new CiphertextError("upload already complete", 409);
   if (status.totalBytes === null) throw new CiphertextError("upload not begun", 409);
+  if (ivBase !== status.ivBase) {
+    // Every chunk must be sealed under the same key material the upload was
+    // begun with; a fresh key on resume would produce an unopenable file.
+    throw new CiphertextError("ivBase does not match this upload — restart from offset 0", 409);
+  }
   if (offset !== status.received) {
     // Resume point mismatch: the client asks GET for the true offset.
     throw new CiphertextError(`expected offset ${status.received}`, 409);
@@ -120,10 +134,17 @@ export async function appendChunk(
 
   const filePath = ciphertextPath(assetId);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  const handle = await fs.open(filePath, "a");
+  const handle = await fs.open(filePath, "r+").catch(() => fs.open(filePath, "w+"));
   try {
     const stat = await handle.stat();
-    if (stat.size !== offset) throw new CiphertextError("storage out of sync", 500);
+    if (stat.size > offset) {
+      // A crash between the file write and the offset update leaves the file
+      // longer than the recorded offset. The DB offset is the source of
+      // truth, so heal by truncating back to it and re-writing the chunk.
+      await handle.truncate(offset);
+    } else if (stat.size < offset) {
+      throw new CiphertextError("storage out of sync", 500);
+    }
     await handle.write(chunk, 0, chunk.byteLength, offset);
   } finally {
     await handle.close();

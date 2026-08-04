@@ -6,6 +6,7 @@ import {
   appendChunk,
   beginUpload,
   CiphertextError,
+  MAX_CHUNK_BYTES,
   uploadStatus,
 } from "@/lib/upload/ciphertext-store";
 
@@ -40,16 +41,24 @@ export async function PUT(request: NextRequest, context: Context): Promise<NextR
     if (!Number.isInteger(offset) || offset < 0) {
       throw new CiphertextError("x-upload-offset header required");
     }
+    const ivBase = request.headers.get("x-upload-iv-base") ?? "";
+
+    // Refuse to buffer an oversized body: the declared length is checked
+    // before a single byte is read into memory.
+    const declaredLength = Number(request.headers.get("content-length") ?? "");
+    if (!Number.isInteger(declaredLength) || declaredLength <= 0) {
+      throw new CiphertextError("content-length header required");
+    }
+    if (declaredLength > MAX_CHUNK_BYTES) throw new CiphertextError("chunk too large", 413);
 
     if (offset === 0) {
       const totalBytes = Number(request.headers.get("x-upload-total-bytes") ?? "");
       const chunkBytes = Number(request.headers.get("x-upload-chunk-bytes") ?? "");
-      const ivBase = request.headers.get("x-upload-iv-base") ?? "";
       await beginUpload(creator.id, id, { totalBytes, chunkBytes, ivBase });
     }
 
     const body = new Uint8Array(await request.arrayBuffer());
-    const status = await appendChunk(creator.id, id, offset, body);
+    const status = await appendChunk(creator.id, id, offset, body, ivBase);
     return NextResponse.json(status);
   } catch (error) {
     return handleError(error);
