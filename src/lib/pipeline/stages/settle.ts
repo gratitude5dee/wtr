@@ -13,6 +13,7 @@
  */
 import { log } from "../../log";
 import { stableBatchId } from "../../trace/client";
+import type { Sha256Ref } from "../../trace/schema";
 import type { StageDeps } from "../deps";
 import { hasEvent, lastTraceSeq } from "../store";
 import { buildTraceDocument } from "../trace-document";
@@ -128,8 +129,9 @@ export function createSettleHandler(deps: StageDeps): StageHandler {
         const updated = await deps.ports.trace.updateMetadata({
           dataId: asset.traceDataId,
           document,
-          prevMetadataRoot: asset.traceMetadataRoot as `0x${string}`,
+          prevMetadataRoot: asset.traceMetadataRoot as Sha256Ref,
           updateCount: asset.traceUpdateCount,
+          occurredAt: creditedAt.toISOString(),
           batchId,
         });
 
@@ -146,6 +148,7 @@ export function createSettleHandler(deps: StageDeps): StageHandler {
             prev_metadata_root: asset.traceMetadataRoot,
             metadata_root: updated.metadataRoot,
             batch_id: batchId,
+            ...(deps.ports.trace.mock ? { trace_mock: true } : {}),
           },
         });
         await deps.store.updateAssetProjection(assetId, {

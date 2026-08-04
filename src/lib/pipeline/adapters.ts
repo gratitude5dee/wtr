@@ -78,8 +78,9 @@ export function createMediaPort(params: {
   };
 }
 
-export function createTracePort(client: TraceClient): TracePort {
+export function createTracePort(client: TraceClient, mock = false): TracePort {
   return {
+    mock,
     registerData: (input) => client.registerData(input),
     updateMetadata: async (input) => {
       const result = await client.updateMetadata(input);
@@ -207,11 +208,12 @@ export function createSettlementPort(clients: WtrClients): SettlementPort {
 export function createPorts(params: {
   clients: WtrClients;
   trace: TraceClient;
+  traceMock?: boolean;
   mediaDir: string;
 }): Ports {
   return {
     media: createMediaPort({ clients: params.clients, mediaDir: params.mediaDir }),
-    trace: createTracePort(params.trace),
+    trace: createTracePort(params.trace, params.traceMock ?? false),
     story: createStoryPort({ clients: params.clients }),
     cdr: createCdrPort(params.clients),
     settlement: createSettlementPort(params.clients),
