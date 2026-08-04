@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SettingsForm } from "@/components/dashboard/settings-form";
 import { DitherAvatar } from "@/components/dither-kit/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,23 +46,23 @@ export default async function SettingsPage() {
                 </div>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="text-muted-foreground">Wallet</span>
-                <span className="font-mono text-xs">
-                  {creator.walletAddress ? shortHash(creator.walletAddress) : "not connected"}
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
                 <span className="text-muted-foreground">KYC</span>
                 <StatusBadge value={creator.kycStatus} good={["verified"]} />
               </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-muted-foreground">Tax form</span>
-                <StatusBadge value={creator.taxStatus} good={["submitted", "verified"]} />
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-muted-foreground">Payout preference</span>
-                <span>{creator.payoutPref === "onchain" ? "On-chain wallet" : "Bank account"}</span>
-              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Payout &amp; identity details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SettingsForm
+                displayName={creator.displayName}
+                walletAddress={creator.walletAddress}
+                payoutPref={creator.payoutPref}
+                taxStatus={creator.taxStatus}
+              />
             </CardContent>
           </Card>
 
