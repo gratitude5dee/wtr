@@ -13,7 +13,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "verify:addresses": "tsx scripts/verify-addresses.ts",
     "bootstrap": "tsx scripts/bootstrap.ts",
-    "e2e": "tsx scripts/e2e.ts"
+    "e2e": "tsx scripts/e2e.ts",
+    "push-policy": "tsx scripts/push-policy.ts"
   },
   "dependencies": {
     "@piplabs/cdr-sdk": "0.2.1",

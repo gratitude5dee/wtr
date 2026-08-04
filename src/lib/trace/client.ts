@@ -150,8 +150,21 @@ export class TraceClient {
     };
   }
 
+  /**
+   * Push WTR's active policy so the audit side can compare it against what
+   * the UI displays (`GET /providers/wtr/policy` serves the same object).
+   */
+  async pushProviderPolicy(params: { policy: unknown; batchId: string }): Promise<void> {
+    await this.request({
+      method: "PUT",
+      path: "/webhook/v1/data-audit/provider-policy",
+      batchId: params.batchId,
+      body: params.policy,
+    });
+  }
+
   private async request<T>(params: {
-    method: "POST" | "GET";
+    method: "POST" | "GET" | "PUT";
     path: string;
     batchId: string;
     body?: unknown;
