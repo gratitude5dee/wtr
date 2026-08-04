@@ -9,17 +9,15 @@
  * operator wallet and the Trace API key. Without them the trigger reports
  * exactly which credential is missing instead of pretending to register.
  */
-import { promises as fs } from "node:fs";
-import path from "node:path";
-
-import { MEDIA_DIR, TRACE_MODE } from "../../../config/env";
+import { MEDIA_DIR, TRACE_API_KEY, TRACE_BASE_URL, TRACE_PROVIDER } from "../../../config/env";
 import { createClients } from "../chain/clients";
 import { db } from "../db/pool";
 import { createStageHandlers, type StageResult } from "../pipeline";
 import { createMediaPort, createPorts } from "../pipeline/adapters";
 import { PgAssetStore } from "../pipeline/pg-store";
 import { getLicenseChoice } from "../listing/service";
-import { createTraceClient, isTraceMock } from "../trace/factory";
+import { mediaStore } from "../storage/media-store";
+import { TraceClient } from "../trace/client";
 import { assertAssetId } from "../upload/ciphertext-store";
 
 /** Safe to echo to the creator. */
@@ -100,8 +98,13 @@ export async function registerAsset(creatorId: string, assetId: string): Promise
     ...createMediaPort({ clients, mediaDir: MEDIA_DIR() }),
     async readPlaintext() {
       assertAssetId(assetId);
-      const filePath = path.join(MEDIA_DIR(), "ciphertext", `${assetId}.bin`);
-      return new Uint8Array(await fs.readFile(filePath));
+      const rows = await db.query<{ ciphertext_total_bytes: string | null }>(
+        "SELECT ciphertext_total_bytes FROM asset WHERE id = $1",
+        [assetId],
+      );
+      const totalBytes = rows.rows[0]?.ciphertext_total_bytes;
+      if (!totalBytes) throw new RegisterError("the encrypted upload has not finished");
+      return mediaStore().readCiphertext(assetId, Number(totalBytes));
     },
   };
 
