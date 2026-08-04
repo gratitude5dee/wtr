@@ -5,6 +5,7 @@ import {
   FolderOpen,
   Inbox,
   LayoutDashboard,
+  LibraryBig,
   Settings,
   Upload,
 } from "lucide-react";
@@ -25,7 +26,10 @@ const SECTIONS = [
   },
   {
     label: "Buyer surface",
-    items: [{ href: "/requests", label: "Requests", icon: Inbox }],
+    items: [
+      { href: "/catalog", label: "Catalog", icon: LibraryBig },
+      { href: "/requests", label: "Requests", icon: Inbox },
+    ],
   },
   {
     label: "Account",
