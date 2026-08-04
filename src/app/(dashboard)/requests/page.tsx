@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -21,12 +22,16 @@ export default async function RequestsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Lab data requests</h1>
-        <Button asChild size="sm">
-          <Link href="/requests/new">Post a request</Link>
-        </Button>
-      </div>
+      <PageHeader
+        kicker="Buyer surface"
+        title="Lab data requests"
+        description="Briefs from labs — answer them with work already listed under matching terms."
+        actions={
+          <Button asChild size="sm">
+            <Link href="/requests/new">Post a request</Link>
+          </Button>
+        }
+      />
       {requests.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No open requests right now. When a lab posts a brief your qualifying assets will

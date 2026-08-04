@@ -9,7 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { shortHash, STAGE_LABEL, STAGE_TONE } from "@/lib/dashboard/format";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { shortHash, STAGE_LABEL, STAGE_TINT } from "@/lib/dashboard/format";
 import { getCurrentCreator, listAssets } from "@/lib/dashboard/queries";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,11 @@ export default async function AssetsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Assets</h1>
+      <PageHeader
+        kicker="Creator"
+        title="Assets"
+        description="Everything you’ve added, from tray to settlement."
+      />
       {assets.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No assets yet.{" "}
@@ -55,7 +60,7 @@ export default async function AssetsPage() {
                 </TableCell>
                 <TableCell className="text-muted-foreground">{asset.modality}</TableCell>
                 <TableCell>
-                  <Badge variant={STAGE_TONE[asset.stage] ?? "outline"}>
+                  <Badge variant="outline" className={STAGE_TINT[asset.stage]}>
                     {STAGE_LABEL[asset.stage] ?? asset.stage}
                   </Badge>
                 </TableCell>

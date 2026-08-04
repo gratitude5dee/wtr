@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -23,7 +24,11 @@ export default async function EarningsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Earnings</h1>
+      <PageHeader
+        kicker="Creator"
+        title="Earnings"
+        description="Sales and payouts, settled in test funds on Aeneid."
+      />
 
       <Card>
         <CardHeader>

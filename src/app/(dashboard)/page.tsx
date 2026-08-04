@@ -4,6 +4,7 @@ import {
   EarningsChart,
   PipelineFunnelChart,
 } from "@/components/dashboard/overview-charts";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { eventLabel, formatIp, STAGE_LABEL } from "@/lib/dashboard/format";
 import {
@@ -56,12 +57,16 @@ export default async function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-xl font-semibold">Overview</h1>
-        <div className="text-sm text-muted-foreground">
-          Total earned: <span className="font-mono text-foreground">{formatIp(totalWei)}</span>
-        </div>
-      </div>
+      <PageHeader
+        kicker="Creator"
+        title="Overview"
+        actions={
+          <div className="text-sm text-muted-foreground">
+            Total earned:{" "}
+            <span className="font-mono text-foreground">{formatIp(totalWei)}</span>
+          </div>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

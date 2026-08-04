@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PageHeader } from "@/components/dashboard/page-header";
 import { SettingsForm } from "@/components/dashboard/settings-form";
 import { DitherAvatar } from "@/components/dither-kit/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h1 className="text-xl font-semibold">Settings</h1>
+      <PageHeader kicker="Account" title="Settings" />
 
       {!creator ? (
         <p className="text-sm text-muted-foreground">
