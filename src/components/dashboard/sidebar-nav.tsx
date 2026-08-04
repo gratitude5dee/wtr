@@ -43,8 +43,11 @@ export function SidebarNav() {
     <nav className="flex flex-col gap-5">
       {SECTIONS.map((section) => (
         <div key={section.label}>
-          <div className="mb-1 px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-            {section.label}
+          <div className="relative mb-1 h-4 px-3">
+            <div className="rail-label font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              {section.label}
+            </div>
+            <div className="absolute inset-x-2 top-1/2 border-t transition-opacity duration-200 group-hover/rail:opacity-0" />
           </div>
           <div className="flex flex-col gap-1">
             {section.items.map(({ href, label, icon: Icon }) => {
@@ -53,6 +56,7 @@ export function SidebarNav() {
                 <Link
                   key={href}
                   href={href}
+                  title={label}
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                     active
@@ -60,8 +64,8 @@ export function SidebarNav() {
                       : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                   )}
                 >
-                  <Icon className="size-4" />
-                  {label}
+                  <Icon className="size-4 shrink-0" />
+                  <span className="rail-label whitespace-nowrap">{label}</span>
                 </Link>
               );
             })}

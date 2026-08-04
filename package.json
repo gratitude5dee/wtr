@@ -15,7 +15,8 @@
     "bootstrap": "tsx scripts/bootstrap.ts",
     "e2e": "tsx scripts/e2e.ts",
     "push-policy": "tsx scripts/push-policy.ts",
-    "seed:request": "tsx scripts/seed-request.ts"
+    "seed:request": "tsx scripts/seed-request.ts",
+    "seed:labs": "tsx scripts/seed-labs.ts"
   },
   "dependencies": {
     "@piplabs/cdr-sdk": "0.2.2",

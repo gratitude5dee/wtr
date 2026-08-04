@@ -40,7 +40,12 @@ export default async function RequestDetailPage({
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">{request.title}</h1>
+        <div>
+          <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            {request.requesterAnonId}
+          </div>
+          <h1 className="text-xl font-semibold">{request.title}</h1>
+        </div>
         <Badge variant={request.status === "open" ? "default" : "outline"}>
           {request.status}
         </Badge>

@@ -16,17 +16,22 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col border-r p-4">
-        <div className="mb-6 px-3">
+      {/* Reserves the collapsed rail's width; the rail itself expands as an
+          overlay on hover so the page never reflows. */}
+      <div className="w-[68px] shrink-0" />
+      <aside className="nav-rail group/rail fixed inset-y-0 left-0 z-40 flex flex-col overflow-x-hidden overflow-y-auto border-r bg-background p-3">
+        <div className="mb-6 h-10 px-2">
           <div className="font-mono text-lg font-semibold tracking-tight">WTR</div>
-          <div className="text-xs text-muted-foreground">A data exchange for humans</div>
+          <div className="rail-label truncate text-xs text-muted-foreground">
+            A data exchange for humans
+          </div>
         </div>
         <SidebarNav />
         <div className="mt-auto space-y-3 pt-6">
           {creator ? (
-            <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
-              <DitherAvatar name={creator.avatarSeed} size={32} />
-              <div className="min-w-0">
+            <div className="flex items-center gap-3 rounded-lg border bg-card p-2">
+              <DitherAvatar name={creator.avatarSeed} size={28} />
+              <div className="rail-label min-w-0">
                 <div className="truncate text-sm">{creator.displayName ?? creator.anonId}</div>
                 <Badge
                   variant="outline"
@@ -42,10 +47,16 @@ export default async function DashboardLayout({
             </div>
           ) : (
             !walletAuth && (
-              <div className="px-3 text-xs text-muted-foreground">No creator yet</div>
+              <div className="rail-label px-2 text-xs text-muted-foreground">
+                No creator yet
+              </div>
             )
           )}
-          {walletAuth && <WalletConnect />}
+          {walletAuth && (
+            <div className="rail-label">
+              <WalletConnect />
+            </div>
+          )}
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
