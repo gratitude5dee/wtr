@@ -46,7 +46,7 @@ function previewPath(assetId: string): string {
   return path.join(MEDIA_DIR(), "previews", `${assetId}.jpg`);
 }
 
-class FsMediaStore implements MediaStore {
+export class FsMediaStore implements MediaStore {
   async writeCiphertextChunk(assetId: string, offset: number, chunk: Uint8Array): Promise<void> {
     const filePath = ciphertextPath(assetId);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
