@@ -108,6 +108,7 @@ export default async function RequestDetailPage({
                         assetId={asset.assetId}
                         submissionStatus={asset.submissionStatus}
                         requestOpen={request.status === "open"}
+                        eligible={asset.eligible}
                       />
                     </TableCell>
                   </TableRow>

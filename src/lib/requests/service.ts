@@ -55,11 +55,15 @@ export interface EligibleAsset {
   filename: string | null;
   /** null = not submitted; otherwise pending/accepted/rejected. */
   submissionStatus: string | null;
+  /** Whether the asset currently carries a matching active listing. */
+  eligible: boolean;
 }
 
 /**
- * A creator's assets that can answer this request: an active listing under
- * the request's exact license preset. Withdrawn or unlisted work never shows.
+ * A creator's assets relevant to this request: those with an active listing
+ * under the request's exact license preset, plus any already submitted —
+ * even if the listing has since been paused, withdrawn or sold, so a pending
+ * submission can always be seen and retracted.
  */
 export async function eligibleAssets(
   creatorId: string,
@@ -70,13 +74,17 @@ export async function eligibleAssets(
     asset_id: string;
     filename: string | null;
     submission_status: string | null;
+    eligible: boolean;
   }>(
-    `SELECT a.id AS asset_id, a.filename, s.status AS submission_status
+    `SELECT a.id AS asset_id, a.filename, s.status AS submission_status,
+            (l.id IS NOT NULL) AS eligible
      FROM asset a
-     JOIN listing l ON l.asset_id = a.id AND l.status = 'active'
-     JOIN data_request r ON r.id = $2 AND r.license_preset = l.license_preset
-     LEFT JOIN submission s ON s.data_request_id = $2 AND s.asset_id = a.id
-     WHERE a.creator_id = $1
+     CROSS JOIN data_request r
+     LEFT JOIN listing l ON l.asset_id = a.id AND l.status = 'active'
+                        AND l.license_preset = r.license_preset
+     LEFT JOIN submission s ON s.data_request_id = r.id AND s.asset_id = a.id
+     WHERE r.id = $2 AND a.creator_id = $1
+       AND (l.id IS NOT NULL OR s.id IS NOT NULL)
      ORDER BY a.created_at DESC`,
     [creatorId, requestId],
   );
@@ -84,6 +92,7 @@ export async function eligibleAssets(
     assetId: row.asset_id,
     filename: row.filename,
     submissionStatus: row.submission_status,
+    eligible: row.eligible,
   }));
 }
 
@@ -122,11 +131,13 @@ export async function submitAsset(
     if (!inserted.rows[0]) throw new RequestError("this asset is already submitted");
 
     const store = new PgAssetStore(tx);
+    // Keyed on the submission row so a withdraw-then-resubmit produces a
+    // fresh activity entry instead of colliding with the first one.
     await store.appendEvent({
       assetId,
       eventType: EVENT.SUBMITTED_TO_REQUEST,
-      idempotencyKey: `submit:${requestId}:${assetId}`,
-      payload: { dataRequestId: requestId },
+      idempotencyKey: `submit:${inserted.rows[0].id}`,
+      payload: { dataRequestId: requestId, submissionId: inserted.rows[0].id },
     });
   });
 }
@@ -154,8 +165,8 @@ export async function withdrawSubmission(
     await store.appendEvent({
       assetId,
       eventType: EVENT.SUBMISSION_WITHDRAWN,
-      idempotencyKey: `submit-withdraw:${requestId}:${assetId}:${Date.now()}`,
-      payload: { dataRequestId: requestId },
+      idempotencyKey: `submit-withdraw:${removed.rows[0].id}`,
+      payload: { dataRequestId: requestId, submissionId: removed.rows[0].id },
     });
   });
 }

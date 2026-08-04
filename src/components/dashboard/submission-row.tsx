@@ -15,11 +15,14 @@ export function SubmissionControls({
   assetId,
   submissionStatus,
   requestOpen,
+  eligible,
 }: {
   requestId: string;
   assetId: string;
   submissionStatus: string | null;
   requestOpen: boolean;
+  /** Whether the asset still carries a matching active listing. */
+  eligible: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -37,13 +40,14 @@ export function SubmissionControls({
       {submissionStatus === null ? (
         <Button
           size="sm"
-          disabled={pending || !requestOpen}
+          disabled={pending || !requestOpen || !eligible}
           onClick={() => act(submitAssetAction)}
         >
           Submit
         </Button>
       ) : (
         <>
+          {!eligible && <Badge variant="outline">no longer listed</Badge>}
           <Badge variant={submissionStatus === "accepted" ? "default" : "outline"}>
             {submissionStatus}
           </Badge>

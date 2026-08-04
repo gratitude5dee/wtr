@@ -40,13 +40,13 @@ describe("eligibleAssets", () => {
       "creator-1",
       "request-1",
       fakeQueryable([
-        { asset_id: "a1", filename: "one.wav", submission_status: null },
-        { asset_id: "a2", filename: null, submission_status: "pending" },
+        { asset_id: "a1", filename: "one.wav", submission_status: null, eligible: true },
+        { asset_id: "a2", filename: null, submission_status: "pending", eligible: false },
       ]),
     );
     expect(assets).toEqual([
-      { assetId: "a1", filename: "one.wav", submissionStatus: null },
-      { assetId: "a2", filename: null, submissionStatus: "pending" },
+      { assetId: "a1", filename: "one.wav", submissionStatus: null, eligible: true },
+      { assetId: "a2", filename: null, submissionStatus: "pending", eligible: false },
     ]);
   });
 });
