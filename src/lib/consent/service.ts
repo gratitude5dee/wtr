@@ -61,12 +61,12 @@ export async function hasCurrentConsent(creatorId: string, q: Queryable = db): P
  * row (if any) gets `revoked_at` stamped — its content is untouched, and
  * assets listed under it keep pointing at it.
  */
-export async function acceptCurrentConsent(creatorId: string): Promise<string> {
+export async function acceptCurrentConsent(creatorId: string, q?: Queryable): Promise<string> {
   const [tosSha, privacySha] = await Promise.all([
     documentSha256(CURRENT_TOS),
     documentSha256(CURRENT_PRIVACY),
   ]);
-  return withTransaction(async (tx) => {
+  const run = async (tx: Queryable) => {
     await tx.query(
       `UPDATE consent_acceptance SET revoked_at = now()
        WHERE creator_id = $1 AND revoked_at IS NULL`,
@@ -90,7 +90,8 @@ export async function acceptCurrentConsent(creatorId: string): Promise<string> {
       ],
     );
     return inserted.rows[0].id;
-  });
+  };
+  return q ? run(q) : withTransaction(run);
 }
 
 /** Creates the creator account and their first consent acceptance together. */
@@ -99,12 +100,15 @@ export async function createCreatorWithConsent(input: {
   walletAddress?: string;
 }): Promise<string> {
   const anonId = `anon-${crypto.randomUUID().slice(0, 12)}`;
-  const created = await db.query<{ id: string }>(
-    `INSERT INTO creator (anon_id, display_name, wallet_address)
-     VALUES ($1, $2, $3) RETURNING id`,
-    [anonId, input.displayName, input.walletAddress ?? null],
-  );
-  const creatorId = created.rows[0].id;
-  await acceptCurrentConsent(creatorId);
-  return creatorId;
+  // One transaction: an account must never exist without its consent row.
+  return withTransaction(async (tx) => {
+    const created = await tx.query<{ id: string }>(
+      `INSERT INTO creator (anon_id, display_name, wallet_address)
+       VALUES ($1, $2, $3) RETURNING id`,
+      [anonId, input.displayName, input.walletAddress ?? null],
+    );
+    const creatorId = created.rows[0].id;
+    await acceptCurrentConsent(creatorId, tx);
+    return creatorId;
+  });
 }

@@ -14,7 +14,18 @@ import { acceptLatestConsentAction, onboardAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function OnboardingPage() {
+const ERROR_TEXT: Record<string, string> = {
+  name: "Enter a display name.",
+  accept: "You must accept the terms before creating an account.",
+  wallet: "That wallet address is not a valid 0x… address.",
+};
+
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const creator = await getCurrentCreator();
   if (creator && (await hasCurrentConsent(creator.id))) redirect("/upload");
 
@@ -64,6 +75,10 @@ export default async function OnboardingPage() {
           </pre>
         </CardContent>
       </Card>
+
+      {error && ERROR_TEXT[error] && (
+        <p className="text-sm text-destructive">{ERROR_TEXT[error]}</p>
+      )}
 
       {creator ? (
         <form action={acceptLatestConsentAction}>
