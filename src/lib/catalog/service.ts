@@ -144,17 +144,40 @@ export interface PurchaseReadiness {
   /** Plain-language blockers, safe to render. */
   blockers: string[];
   alreadySettled: boolean;
+  /** A mint happened but payout/settlement did not — the buyer may resume. */
+  resumable: boolean;
+}
+
+async function saleBuyerAnonId(assetId: string, q: Queryable): Promise<string | null> {
+  const rows = await q.query<{ buyer_anon_id: string }>(
+    "SELECT buyer_anon_id FROM sale WHERE asset_id = $1 ORDER BY created_at DESC LIMIT 1",
+    [assetId],
+  );
+  return rows.rows[0]?.buyer_anon_id ?? null;
 }
 
 export async function purchaseReadiness(
-  buyer: { id: string; walletAddress: string | null },
+  buyer: { id: string; anonId: string; walletAddress: string | null },
   assetId: string,
 ): Promise<PurchaseReadiness | null> {
   const item = await getCatalogItem(assetId);
   if (!item) return null;
 
   const blockers: string[] = [];
-  const alreadySettled = item.stage === "SETTLED" || item.stage === "SOLD";
+  // Only SETTLED is terminal. The settle handler sets SOLD after the mint but
+  // before the payout sub-step, so a SOLD asset is a half-finished purchase
+  // that its buyer must be able to resume — otherwise the creator is never
+  // credited.
+  const alreadySettled = item.stage === "SETTLED";
+  let resumable = false;
+  if (item.stage === "SOLD") {
+    const soldTo = await saleBuyerAnonId(assetId, db);
+    if (soldTo === buyer.anonId) {
+      resumable = true;
+    } else {
+      blockers.push("another buyer's purchase of this asset is completing");
+    }
+  }
   if (item.creatorId === buyer.id) {
     blockers.push("you cannot buy your own listing");
   }
@@ -167,7 +190,7 @@ export async function purchaseReadiness(
   if (TRACE_MODE() === "live" && !process.env.WTR_TRACE_API_KEY) {
     blockers.push("the Trace provider key is not configured on this server");
   }
-  return { ready: blockers.length === 0 && !alreadySettled, blockers, alreadySettled };
+  return { ready: blockers.length === 0 && !alreadySettled, blockers, alreadySettled, resumable };
 }
 
 /**

@@ -23,7 +23,7 @@ export default async function CatalogItemPage({
   if (!item) notFound();
 
   const readiness = await purchaseReadiness(
-    { id: creator.id, walletAddress: creator.walletAddress },
+    { id: creator.id, anonId: creator.anonId, walletAddress: creator.walletAddress },
     id,
   );
 
@@ -63,6 +63,7 @@ export default async function CatalogItemPage({
             priceLabel={formatIp(item.priceWei)}
             blockers={readiness?.blockers ?? []}
             alreadySettled={readiness?.alreadySettled ?? false}
+            resumable={readiness?.resumable ?? false}
           />
         </CardContent>
       </Card>

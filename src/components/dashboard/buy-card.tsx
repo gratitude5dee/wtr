@@ -10,11 +10,13 @@ export function BuyCard({
   priceLabel,
   blockers,
   alreadySettled,
+  resumable,
 }: {
   assetId: string;
   priceLabel: string;
   blockers: string[];
   alreadySettled: boolean;
+  resumable: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [state, setState] = useState<{ error: string | null; settled: boolean }>({
@@ -42,6 +44,12 @@ export function BuyCard({
 
   return (
     <div className="space-y-2">
+      {resumable && (
+        <p className="text-sm text-[rgb(var(--tint-orange))]">
+          Your license token was minted but the purchase did not finish settling — retry to
+          complete it.
+        </p>
+      )}
       <Button
         disabled={pending}
         onClick={() =>
@@ -50,7 +58,11 @@ export function BuyCard({
           })
         }
       >
-        {pending ? "Minting license…" : `Buy license · ${priceLabel}`}
+        {pending
+          ? "Minting license…"
+          : resumable
+            ? "Finish purchase"
+            : `Buy license · ${priceLabel}`}
       </Button>
       <p className="text-xs text-muted-foreground">
         Mints a real license token on Aeneid to your wallet; the fee is read live from the
