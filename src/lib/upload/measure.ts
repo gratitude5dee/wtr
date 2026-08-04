@@ -53,14 +53,34 @@ function measureImage(file: File): Promise<Measured> {
 /** First-frame perceptual hashes for video, once metadata is loaded. */
 function hashVideoFrame(video: HTMLVideoElement): Promise<Partial<Measured>> {
   return new Promise((resolve) => {
-    const done = () => resolve(video.videoWidth > 0 ? hashFrame(video) : {});
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      // Only hash once a frame is actually decodable — drawing an element at
+      // readyState < 2 paints a blank canvas, and identical blank-frame
+      // fingerprints would cause bogus similarity matches.
+      const ready = video.readyState >= 2 && video.videoWidth > 0;
+      resolve(ready ? hashFrame(video) : {});
+    };
     if (video.readyState >= 2) return done();
+    // A same-position seek can be a no-op in some browsers (no `seeked`), so
+    // also wait for the first decodable frame and cap the whole attempt —
+    // hashes are best-effort and must never wedge the measurement promise.
     video.onseeked = done;
-    video.onerror = () => resolve({});
+    video.onloadeddata = done;
+    video.oncanplay = done;
+    video.onerror = () => {
+      if (!settled) {
+        settled = true;
+        resolve({});
+      }
+    };
+    setTimeout(done, 3000);
     try {
       video.currentTime = 0;
     } catch {
-      resolve({});
+      done();
     }
   });
 }
