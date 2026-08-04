@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { listCatalog } from "@/lib/catalog/service";
 import { formatIp, PRESET_NAME } from "@/lib/dashboard/format";
-import { getCurrentCreator } from "@/lib/dashboard/queries";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -35,9 +33,6 @@ export default async function CatalogPage({
 }: {
   searchParams: Promise<{ modality?: string; preset?: string }>;
 }) {
-  const creator = await getCurrentCreator();
-  if (!creator) redirect("/onboarding");
-
   const params = await searchParams;
   const modality = (MODALITIES as readonly string[]).includes(params.modality ?? "")
     ? params.modality

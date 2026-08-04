@@ -421,7 +421,7 @@ export interface DataRequestRow {
 }
 
 export async function listDataRequests(
-  creatorId: string,
+  creatorId: string | null,
   q: Queryable = db,
 ): Promise<DataRequestRow[]> {
   const result = await q.query<{

@@ -141,25 +141,39 @@
     width 0.3s cubic-bezier(0.32, 0.72, 0, 1),
     box-shadow 0.3s ease;
 }
-.nav-rail:hover {
+.nav-rail:hover,
+.nav-rail:focus-within {
   width: 240px;
   box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Labels inside the collapsible nav rail: hidden when the rail is a 68px
-   icon strip, revealed as it expands on hover. */
+   icon strip (icons + tooltips only, the text takes no space), revealed as
+   the rail expands on hover or keyboard focus — tabbing into the rail
+   expands it, so controls like the wallet sign-in stay reachable. */
 .rail-label {
+  max-width: 0;
+  overflow: hidden;
+  visibility: hidden;
   opacity: 0;
   transform: translateX(-6px);
   transition:
+    max-width 0.3s cubic-bezier(0.32, 0.72, 0, 1),
     opacity 0.25s cubic-bezier(0.32, 0.72, 0, 1) 0.05s,
-    transform 0.25s cubic-bezier(0.32, 0.72, 0, 1) 0.05s;
-  pointer-events: none;
+    transform 0.25s cubic-bezier(0.32, 0.72, 0, 1) 0.05s,
+    visibility 0s linear 0.3s;
 }
-.group\/rail:hover .rail-label {
+.group\/rail:hover .rail-label,
+.group\/rail:focus-within .rail-label {
+  max-width: 200px;
+  visibility: visible;
   opacity: 1;
   transform: translateX(0);
-  pointer-events: auto;
+  transition:
+    max-width 0.3s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.25s cubic-bezier(0.32, 0.72, 0, 1) 0.05s,
+    transform 0.25s cubic-bezier(0.32, 0.72, 0, 1) 0.05s,
+    visibility 0s;
 }
 
 @media (prefers-reduced-motion: no-preference) {
