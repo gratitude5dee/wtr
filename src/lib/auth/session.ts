@@ -75,6 +75,25 @@ export function signInMessage(address: string, nonce: string): string {
   ].join("\n");
 }
 
+export const PENDING_WALLET_COOKIE = "wtr-wallet-pending";
+const PENDING_TTL_MS = 30 * 60 * 1000;
+
+/**
+ * A wallet that proved key possession but has no account yet: carried into
+ * onboarding so the new account binds to the verified wallet, not to
+ * whatever the form claims.
+ */
+export function issuePendingWallet(wallet: string): string {
+  return pack({ wallet, exp: Date.now() + PENDING_TTL_MS });
+}
+
+export function readPendingWallet(cookieValue: string): string | null {
+  const payload = unpack(cookieValue);
+  if (!payload) return null;
+  if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
+  return typeof payload.wallet === "string" ? payload.wallet : null;
+}
+
 export function issueSession(creatorId: string, wallet: string): string {
   return pack({ creatorId, wallet, exp: Date.now() + SESSION_TTL_MS });
 }
