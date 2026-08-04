@@ -6,7 +6,7 @@
  * connection mid-transaction (goal.md §12 — "write the failure path first").
  */
 import type { LicensePreset } from "../story/license-presets";
-import type { TraceDocument } from "../trace/schema";
+import type { Sha256Ref, TraceDocument } from "../trace/schema";
 
 /** Stage 3a — encrypt client-side, upload to storage, seal the key in an owner-gated vault. */
 export interface MediaPort {
@@ -25,17 +25,23 @@ export interface MediaPort {
 
 /** Stage 3b — Trace registration and (subset-only) metadata updates. */
 export interface TracePort {
+  /** True when Trace calls are simulated (no provider key yet) — recorded in provenance. */
+  readonly mock: boolean;
   registerData(params: {
     document: TraceDocument;
+    /** Provider-owned stable public record id — WTR uses the asset id. */
+    sourceRecordId: string;
+    occurredAt: string;
     batchId: string;
-  }): Promise<{ dataId: string; initialMetadataRoot: `0x${string}` }>;
+  }): Promise<{ dataId: string; initialMetadataRoot: Sha256Ref }>;
   updateMetadata(params: {
     dataId: string;
     document: TraceDocument;
-    prevMetadataRoot: `0x${string}`;
+    prevMetadataRoot: Sha256Ref;
     updateCount: number;
+    occurredAt: string;
     batchId: string;
-  }): Promise<{ metadataRoot: `0x${string}`; updateCount: number }>;
+  }): Promise<{ metadataRoot: Sha256Ref; updateCount: number }>;
 }
 
 /** Stage 3c — Story IP registration against WTR's own SPG collection. */

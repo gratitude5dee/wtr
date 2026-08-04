@@ -12,14 +12,14 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { MEDIA_DIR, TRACE_API_KEY, TRACE_BASE_URL, TRACE_PROVIDER } from "../../../config/env";
+import { MEDIA_DIR, TRACE_MODE } from "../../../config/env";
 import { createClients } from "../chain/clients";
 import { db } from "../db/pool";
 import { createStageHandlers, type StageResult } from "../pipeline";
 import { createMediaPort, createPorts } from "../pipeline/adapters";
 import { PgAssetStore } from "../pipeline/pg-store";
 import { getLicenseChoice } from "../listing/service";
-import { TraceClient } from "../trace/client";
+import { createTraceClient, isTraceMock } from "../trace/factory";
 import { assertAssetId } from "../upload/ciphertext-store";
 
 /** Safe to echo to the creator. */
@@ -59,7 +59,7 @@ export async function registrationReadiness(
   if (!process.env.WTR_WALLET_PRIVATE_KEY) {
     blockers.push("the operator wallet is not configured on this server");
   }
-  if (!process.env.WTR_TRACE_API_KEY) {
+  if (TRACE_MODE() === "live" && !process.env.WTR_TRACE_API_KEY) {
     blockers.push("the Trace provider key is not configured on this server");
   }
   return { ready: blockers.length === 0, blockers, stage: row.stage };
@@ -91,12 +91,8 @@ export async function registerAsset(creatorId: string, assetId: string): Promise
   const { preset, askPriceWei } = choice;
 
   const clients = await createClients();
-  const trace = new TraceClient({
-    baseUrl: TRACE_BASE_URL(),
-    apiKey: TRACE_API_KEY(),
-    provider: TRACE_PROVIDER(),
-  });
-  const ports = createPorts({ clients, trace, mediaDir: MEDIA_DIR() });
+  const trace = createTraceClient();
+  const ports = createPorts({ clients, trace, traceMock: isTraceMock(), mediaDir: MEDIA_DIR() });
   // Browser-uploaded assets exist server-side only as ciphertext (the
   // original was sealed on the creator's device). Stage 3a therefore uploads
   // the server-held ciphertext file — the plaintext never touches WTR.

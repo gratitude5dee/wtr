@@ -5,7 +5,13 @@
  */
 import { CHAIN_ID } from "../../../config/chain";
 import type { LicensePreset } from "../story/license-presets";
-import { TRACE_SCHEMA, type TraceDocument } from "../trace/schema";
+import {
+  TRACE_SCHEMA_VERSION,
+  mediaCategory,
+  toSha256Ref,
+  type TraceDocument,
+} from "../trace/schema";
+import { EVENT } from "./types";
 
 import type { AssetStore } from "./store";
 
@@ -25,6 +31,7 @@ export async function buildTraceDocument(
   if (!creator) throw new Error(`Unknown creator ${asset.creatorId}`);
   const consent = await store.getLatestConsent(asset.creatorId);
   const labels = await store.getLabels(assetId);
+  const events = await store.listEvents(assetId);
 
   const preset =
     overrides.licensePreset ?? ((labels["wtr:license_preset"] as LicensePreset | undefined) ?? null);
@@ -35,14 +42,18 @@ export async function buildTraceDocument(
     return sale ? store.getPayout(sale.id) : null;
   })();
 
+  const ingestedAt = events.find((event) => event.eventType === EVENT.INGESTED)?.createdAt;
+  const uploadedAt = (ingestedAt ?? new Date()).toISOString();
+  const paymentCreditedAt =
+    (overrides.paymentCreditedAt ?? payout?.paymentCreditedAt ?? null)?.toISOString() ?? undefined;
+
   return {
-    schema: TRACE_SCHEMA,
-    asset: {
-      ref: asset.id,
-      media_type: asset.mediaType,
-      content_sha256: asset.contentSha256,
-      byte_size: asset.byteSize,
-      ipfs_cid: asset.ipfsCid,
+    schema_version: TRACE_SCHEMA_VERSION,
+    file: {
+      content_sha256: toSha256Ref(asset.contentSha256),
+      mime_type: asset.mediaType,
+      media_category: mediaCategory(asset.mediaType),
+      size_bytes: asset.byteSize,
     },
     contributor: {
       // Pseudonym only — never a name, email or filename (goal.md §12).
@@ -50,34 +61,44 @@ export async function buildTraceDocument(
       kyc_status: creator.kycStatus,
       consent: consent
         ? {
-            document_version: consent.documentVersion,
-            document_sha256: consent.documentSha256,
-            scopes: consent.scopes,
-            accepted_at: consent.acceptedAt.toISOString(),
+            tos_version: consent.documentVersion,
+            tos_hash: toSha256Ref(consent.documentSha256),
           }
         : null,
     },
-    license:
-      preset && presetRow
-        ? {
-            preset,
-            license_terms_id: presetRow.licenseTermsId.toString(),
-            terms_uri: presetRow.termsUri,
-            terms_sha256: presetRow.termsSha256,
-            ai_learning_models: presetRow.aiLearningModels,
-          }
-        : null,
-    labels,
-    chain: {
-      chain_id: CHAIN_ID,
-      ip_id: asset.ipId,
-      cdr_vault_uuid: asset.cdrVaultUuid,
+    app: {
+      platform_name: "wtr",
     },
-    settlement: {
-      payment_credited_at:
-        (overrides.paymentCreditedAt ?? payout?.paymentCreditedAt ?? null)?.toISOString() ?? null,
+    timestamps: {
+      // The record's origin moment; fixed across later updates, whose root
+      // `occurred_at` dates the update itself.
+      originated_at: uploadedAt,
+      uploaded_at: uploadedAt,
+      ...(paymentCreditedAt ? { payment_credited_at: paymentCreditedAt } : {}),
     },
-    takedown: overrides.takedown ?? null,
-    provider_payload: overrides.providerPayload ?? {},
+    provider_payload: {
+      asset_ref: asset.id,
+      ipfs_cid: asset.ipfsCid,
+      labels,
+      license:
+        preset && presetRow
+          ? {
+              preset,
+              license_terms_id: presetRow.licenseTermsId.toString(),
+              terms_uri: presetRow.termsUri,
+              terms_sha256: presetRow.termsSha256,
+              ai_learning_models: presetRow.aiLearningModels,
+            }
+          : null,
+      consent_scopes: consent?.scopes ?? null,
+      consent_accepted_at: consent?.acceptedAt.toISOString() ?? null,
+      chain: {
+        chain_id: CHAIN_ID,
+        ip_id: asset.ipId,
+        cdr_vault_uuid: asset.cdrVaultUuid,
+      },
+      takedown: overrides.takedown ?? null,
+      ...(overrides.providerPayload ?? {}),
+    },
   };
 }
