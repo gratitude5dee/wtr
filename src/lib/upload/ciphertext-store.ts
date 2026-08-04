@@ -7,11 +7,8 @@
  * Only ciphertext ever reaches this module. Plaintext and keys stay in the
  * creator's browser.
  */
-import { promises as fs } from "node:fs";
-import path from "node:path";
-
-import { MEDIA_DIR } from "../../../config/env";
 import { db } from "../db/pool";
+import { mediaStore } from "../storage/media-store";
 
 /** Bad input, safe to echo to the caller. */
 export class CiphertextError extends Error {
@@ -30,11 +27,6 @@ export const MAX_CHUNK_BYTES = 32 * 1024 * 1024;
 /** Asset ids come from the URL; only a UUID may ever touch the filesystem. */
 export function assertAssetId(assetId: string): void {
   if (!UUID.test(assetId)) throw new CiphertextError("asset not found", 404);
-}
-
-function ciphertextPath(assetId: string): string {
-  assertAssetId(assetId);
-  return path.join(MEDIA_DIR(), "ciphertext", `${assetId}.bin`);
 }
 
 export interface UploadStatus {
@@ -132,22 +124,15 @@ export async function appendChunk(
     throw new CiphertextError("chunk overruns declared total");
   }
 
-  const filePath = ciphertextPath(assetId);
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  const handle = await fs.open(filePath, "r+").catch(() => fs.open(filePath, "w+"));
+  // A crash between the storage write and the offset update leaves bytes
+  // beyond the recorded offset. The DB offset is the source of truth, so
+  // heal by discarding them and re-writing the chunk.
+  const store = mediaStore();
+  await store.truncateCiphertext(assetId, offset);
   try {
-    const stat = await handle.stat();
-    if (stat.size > offset) {
-      // A crash between the file write and the offset update leaves the file
-      // longer than the recorded offset. The DB offset is the source of
-      // truth, so heal by truncating back to it and re-writing the chunk.
-      await handle.truncate(offset);
-    } else if (stat.size < offset) {
-      throw new CiphertextError("storage out of sync", 500);
-    }
-    await handle.write(chunk, 0, chunk.byteLength, offset);
-  } finally {
-    await handle.close();
+    await store.writeCiphertextChunk(assetId, offset, chunk);
+  } catch {
+    throw new CiphertextError("storage out of sync", 500);
   }
 
   const received = status.received + chunk.byteLength;

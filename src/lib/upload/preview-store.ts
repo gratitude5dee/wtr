@@ -4,11 +4,8 @@
  * GPS and device metadata, since only pixels survive the decode/re-encode.
  * The server never sees the original, so it could not leak what it never had.
  */
-import { promises as fs } from "node:fs";
-import path from "node:path";
-
-import { MEDIA_DIR } from "../../../config/env";
 import { db } from "../db/pool";
+import { mediaStore } from "../storage/media-store";
 
 export class PreviewError extends Error {
   constructor(
@@ -24,12 +21,6 @@ const MAX_PREVIEW_BYTES = 512 * 1024;
 const PREVIEW_MIME = "image/jpeg";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-/** Asset ids come from the URL; only a UUID may ever touch the filesystem. */
-function previewPath(assetId: string): string {
-  if (!UUID.test(assetId)) throw new PreviewError("asset not found", 404);
-  return path.join(MEDIA_DIR(), "previews", `${assetId}.jpg`);
-}
 
 export async function storePreview(
   creatorId: string,
@@ -53,24 +44,19 @@ export async function storePreview(
   );
   if (updated.rowCount === 0) throw new PreviewError("asset not found", 404);
 
-  const filePath = previewPath(assetId);
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, bytes);
+  await mediaStore().writePreview(assetId, bytes);
   return previewUrl;
 }
 
 export async function readPreview(
   assetId: string,
-): Promise<{ bytes: Buffer; mime: string } | null> {
+): Promise<{ bytes: Uint8Array; mime: string } | null> {
   if (!UUID.test(assetId)) return null;
   const rows = await db.query<{ preview_url: string | null }>(
     "SELECT preview_url FROM asset WHERE id = $1",
     [assetId],
   );
   if (!rows.rows[0]?.preview_url) return null;
-  try {
-    return { bytes: await fs.readFile(previewPath(assetId)), mime: PREVIEW_MIME };
-  } catch {
-    return null;
-  }
+  const bytes = await mediaStore().readPreview(assetId);
+  return bytes ? { bytes, mime: PREVIEW_MIME } : null;
 }
