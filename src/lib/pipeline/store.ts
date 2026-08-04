@@ -27,7 +27,7 @@ export interface LicensePresetRow {
 export interface CreatorRow {
   id: string;
   anonId: string;
-  kycStatus: "none" | "pending" | "verified" | "rejected";
+  kycStatus: "unverified" | "pending" | "verified" | "failed";
 }
 
 export interface ConsentRow {

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { DitherAvatar } from "@/components/dither-kit/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,8 +22,11 @@ export default async function SettingsPage() {
 
       {!creator ? (
         <p className="text-sm text-muted-foreground">
-          No creator account exists yet. Account creation (wallet connect + consent) lands
-          with the onboarding slice.
+          No creator account exists yet.{" "}
+          <Link className="underline" href="/onboarding">
+            Create one and accept the terms
+          </Link>
+          .
         </p>
       ) : (
         <>
@@ -75,7 +80,18 @@ export default async function SettingsPage() {
                     <li key={index} className="space-y-1 text-sm">
                       <div className="flex items-baseline justify-between">
                         <span className="font-medium">
-                          {consent.documentVersion}
+                          {consent.documentUri ? (
+                            <Link className="underline underline-offset-2" href={consent.documentUri}>
+                              {consent.documentVersion}
+                            </Link>
+                          ) : (
+                            consent.documentVersion
+                          )}
+                          {consent.privacyVersion && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              + {consent.privacyVersion}
+                            </span>
+                          )}
                           {consent.revokedAt && (
                             <Badge variant="outline" className="ml-2">
                               superseded

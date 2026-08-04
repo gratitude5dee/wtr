@@ -358,6 +358,7 @@ export interface ConsentRow {
   documentVersion: string;
   documentSha256: string;
   documentUri: string | null;
+  privacyVersion: string | null;
   scopes: unknown;
   acceptedAt: Date;
   revokedAt: Date | null;
@@ -371,11 +372,12 @@ export async function listConsentHistory(
     document_version: string;
     document_sha256: string;
     document_uri: string | null;
+    privacy_version: string | null;
     scopes: unknown;
     accepted_at: Date;
     revoked_at: Date | null;
   }>(
-    `SELECT document_version, document_sha256, document_uri, scopes, accepted_at, revoked_at
+    `SELECT document_version, document_sha256, document_uri, privacy_version, scopes, accepted_at, revoked_at
      FROM consent_acceptance WHERE creator_id = $1 ORDER BY accepted_at DESC`,
     [creatorId],
   );
@@ -383,6 +385,7 @@ export async function listConsentHistory(
     documentVersion: row.document_version,
     documentSha256: row.document_sha256,
     documentUri: row.document_uri,
+    privacyVersion: row.privacy_version,
     scopes: row.scopes,
     acceptedAt: row.accepted_at,
     revokedAt: row.revoked_at,

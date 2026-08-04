@@ -23,11 +23,11 @@ export default async function OverviewPage() {
       <div className="mx-auto max-w-lg pt-24 text-center">
         <h1 className="mb-2 text-xl font-semibold">Welcome to WTR</h1>
         <p className="text-sm text-muted-foreground">
-          No creator account exists yet. Head to{" "}
-          <Link className="underline" href="/settings">
-            Settings
-          </Link>{" "}
-          to set up your identity and accept the terms, then upload your first file.
+          No creator account exists yet.{" "}
+          <Link className="underline" href="/onboarding">
+            Set up your identity and accept the terms
+          </Link>
+          , then upload your first file.
         </p>
       </div>
     );
