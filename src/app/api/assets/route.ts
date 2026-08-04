@@ -4,7 +4,7 @@ import { hasCurrentConsent } from "@/lib/consent/service";
 import { getCurrentCreator } from "@/lib/dashboard/queries";
 import { log } from "@/lib/log";
 import { modalityForFilename } from "@/lib/upload/modality";
-import { registerAsset } from "@/lib/upload/register-asset";
+import { registerAsset, UploadValidationError } from "@/lib/upload/register-asset";
 
 export async function POST(request: Request): Promise<NextResponse> {
   const creator = await getCurrentCreator();
@@ -48,6 +48,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     const failure = error as Error;
     log.error("asset registration failed", { error: failure.message });
-    return NextResponse.json({ error: failure.message }, { status: 400 });
+    if (failure instanceof UploadValidationError) {
+      return NextResponse.json({ error: failure.message }, { status: 400 });
+    }
+    // Internal detail stays in the log; the client gets a generic failure.
+    return NextResponse.json({ error: "registration failed — try again" }, { status: 500 });
   }
 }
