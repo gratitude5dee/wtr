@@ -26,11 +26,11 @@ export default async function RequestDetailPage({
 }) {
   const { id } = await params;
   const creator = await getCurrentCreator();
-  if (!creator) notFound();
   const request = await getRequest(id).catch(() => null);
   if (!request) notFound();
-  const isRequester = request.requesterCreatorId === creator.id;
-  const assets = isRequester ? [] : await eligibleAssets(creator.id, request.id);
+  const isRequester = creator !== null && request.requesterCreatorId === creator.id;
+  const assets =
+    isRequester || !creator ? [] : await eligibleAssets(creator.id, request.id);
   const submissions = isRequester ? await listSubmissionsForReview(creator.id, request.id) : [];
 
   const specEntries = Object.entries(request.spec).filter(
@@ -149,6 +149,18 @@ export default async function RequestDetailPage({
                 </TableBody>
               </Table>
             )}
+          </CardContent>
+        </Card>
+      ) : !creator ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your qualifying work</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <Link className="underline underline-offset-2" href="/onboarding">
+              Create an account
+            </Link>{" "}
+            to answer this brief with your listed work.
           </CardContent>
         </Card>
       ) : (

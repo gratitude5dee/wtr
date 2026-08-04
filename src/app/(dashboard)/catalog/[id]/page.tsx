@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 import { BuyCard } from "@/components/dashboard/buy-card";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -16,16 +16,17 @@ export default async function CatalogItemPage({
   params: Promise<{ id: string }>;
 }) {
   const creator = await getCurrentCreator();
-  if (!creator) redirect("/onboarding");
 
   const { id } = await params;
   const item = await getCatalogItem(id);
   if (!item) notFound();
 
-  const readiness = await purchaseReadiness(
-    { id: creator.id, anonId: creator.anonId, walletAddress: creator.walletAddress },
-    id,
-  );
+  const readiness = creator
+    ? await purchaseReadiness(
+        { id: creator.id, anonId: creator.anonId, walletAddress: creator.walletAddress },
+        id,
+      )
+    : null;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -61,7 +62,10 @@ export default async function CatalogItemPage({
           <BuyCard
             assetId={item.assetId}
             priceLabel={formatIp(item.priceWei)}
-            blockers={readiness?.blockers ?? []}
+            blockers={
+              readiness?.blockers ??
+              (creator ? [] : ["Create an account at /onboarding to buy"])
+            }
             alreadySettled={readiness?.alreadySettled ?? false}
             resumable={readiness?.resumable ?? false}
           />

@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default async function RequestsPage() {
   const creator = await getCurrentCreator();
-  const requests = creator ? await listDataRequests(creator.id) : [];
+  const requests = await listDataRequests(creator?.id ?? null);
 
   return (
     <div className="space-y-6">
