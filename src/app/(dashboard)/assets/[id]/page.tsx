@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { LabelReview } from "@/components/dashboard/label-review";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -150,35 +151,18 @@ export default async function AssetDetailPage({
         <CardHeader>
           <CardTitle>Labels</CardTitle>
         </CardHeader>
-        <CardContent>
-          {asset.labels.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No labels yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {asset.labels.map((label) => (
-                <li
-                  key={`${label.namespace}:${label.key}`}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span>
-                    <span className="text-muted-foreground">{label.key}:</span>{" "}
-                    {typeof label.value === "string" ? label.value : JSON.stringify(label.value)}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    {label.source === "model" && !label.confirmedByCreator ? (
-                      <Badge variant="outline">machine-generated</Badge>
-                    ) : (
-                      <Badge variant="secondary">confirmed by you</Badge>
-                    )}
-                    {label.confidence !== null && label.source === "model" && (
-                      <span className="text-xs text-muted-foreground">
-                        {(label.confidence * 100).toFixed(0)}%
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
+        <CardContent className="space-y-3">
+          {/* Labels freeze once registration bakes them into the metadata root. */}
+          <LabelReview
+            assetId={asset.id}
+            labels={asset.labels}
+            editable={asset.stage === "IN_TRAY" || asset.stage === "LABELED"}
+          />
+          {asset.stage !== "IN_TRAY" && asset.stage !== "LABELED" && (
+            <p className="text-xs text-muted-foreground">
+              Labels were sealed into the provenance record at registration and can no
+              longer be edited.
+            </p>
           )}
         </CardContent>
       </Card>

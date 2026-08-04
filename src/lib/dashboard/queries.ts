@@ -152,6 +152,7 @@ export async function listAssets(creatorId: string, q: Queryable = db): Promise<
 }
 
 export interface AssetLabelRow {
+  id: string;
   namespace: string;
   key: string;
   value: unknown;
@@ -216,6 +217,7 @@ export async function getAssetDetail(
 
   const [labels, events, listing] = await Promise.all([
     q.query<{
+      id: string;
       namespace: string;
       key: string;
       value: unknown;
@@ -224,7 +226,7 @@ export async function getAssetDetail(
       model_id: string | null;
       confirmed_by_creator: boolean;
     }>(
-      `SELECT namespace, key, value, source, confidence, model_id, confirmed_by_creator
+      `SELECT id, namespace, key, value, source, confidence, model_id, confirmed_by_creator
        FROM asset_label WHERE asset_id = $1 ORDER BY namespace, key`,
       [assetId],
     ),
@@ -258,6 +260,7 @@ export async function getAssetDetail(
     traceMetadataRoot: asset.trace_metadata_root,
     createdAt: asset.created_at,
     labels: labels.rows.map((row) => ({
+      id: row.id,
       namespace: row.namespace,
       key: row.key,
       value: row.value,
