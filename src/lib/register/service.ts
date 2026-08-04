@@ -9,7 +9,7 @@
  * operator wallet and the Trace API key. Without them the trigger reports
  * exactly which credential is missing instead of pretending to register.
  */
-import { MEDIA_DIR, TRACE_API_KEY, TRACE_BASE_URL, TRACE_PROVIDER } from "../../../config/env";
+import { MEDIA_DIR, TRACE_MODE } from "../../../config/env";
 import { createClients } from "../chain/clients";
 import { db } from "../db/pool";
 import { createStageHandlers, type StageResult } from "../pipeline";
@@ -17,7 +17,7 @@ import { createMediaPort, createPorts } from "../pipeline/adapters";
 import { PgAssetStore } from "../pipeline/pg-store";
 import { getLicenseChoice } from "../listing/service";
 import { mediaStore } from "../storage/media-store";
-import { TraceClient } from "../trace/client";
+import { createTraceClient, isTraceMock } from "../trace/factory";
 import { assertAssetId } from "../upload/ciphertext-store";
 
 /** Safe to echo to the creator. */
