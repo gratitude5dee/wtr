@@ -1,103 +1,40 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { createThirdwebClient } from "thirdweb";
+import { ConnectButton, ThirdwebProvider } from "thirdweb/react";
 
-import { Button } from "@/components/ui/button";
+import { generatePayload, isLoggedIn, login, logout } from "@/app/actions/auth";
+import { storyAeneid } from "@/lib/auth/thirdweb-chain";
 
-interface EthereumProvider {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-}
+const clientId = process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID ?? "";
+const client = clientId ? createThirdwebClient({ clientId }) : null;
 
-function getEthereum(): EthereumProvider | null {
-  const eth = (window as unknown as { ethereum?: EthereumProvider }).ethereum;
-  return eth ?? null;
-}
-
-export function WalletConnect({ signedIn }: { signedIn: boolean }) {
+export function WalletConnect() {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const signIn = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const ethereum = getEthereum();
-      if (!ethereum) {
-        setError("No wallet found — install a browser wallet first.");
-        return;
-      }
-      const accounts = (await ethereum.request({
-        method: "eth_requestAccounts",
-      })) as string[];
-      const address = accounts[0];
-      if (!address) {
-        setError("Wallet returned no account.");
-        return;
-      }
-
-      const nonceRes = await fetch("/api/auth/nonce", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address }),
-      });
-      const nonceBody = (await nonceRes.json()) as { message?: string; error?: string };
-      if (!nonceRes.ok || !nonceBody.message) {
-        setError(nonceBody.error ?? "Could not start sign-in.");
-        return;
-      }
-
-      const signature = (await ethereum.request({
-        method: "personal_sign",
-        params: [nonceBody.message, address],
-      })) as string;
-
-      const verifyRes = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, signature }),
-      });
-      const verifyBody = (await verifyRes.json()) as {
-        onboarded?: boolean;
-        error?: string;
-      };
-      if (!verifyRes.ok) {
-        setError(verifyBody.error ?? "Sign-in failed.");
-        return;
-      }
-      router.push(verifyBody.onboarded ? "/" : "/onboarding");
-      router.refresh();
-    } catch {
-      setError("Sign-in was cancelled or failed.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const signOut = async () => {
-    setBusy(true);
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/");
-      router.refresh();
-    } finally {
-      setBusy(false);
-    }
-  };
+  if (!client) return null;
 
   return (
-    <div className="space-y-2">
-      {signedIn ? (
-        <Button size="sm" variant="outline" disabled={busy} onClick={signOut}>
-          Sign out
-        </Button>
-      ) : (
-        <Button size="sm" disabled={busy} onClick={signIn}>
-          Connect wallet
-        </Button>
-      )}
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
+    <ThirdwebProvider>
+      <ConnectButton
+        client={client}
+        chain={storyAeneid}
+        connectButton={{ label: "Connect wallet" }}
+        auth={{
+          getLoginPayload: (params) => generatePayload(params),
+          doLogin: async (params) => {
+            const { onboarded } = await login(params);
+            router.push(onboarded ? "/" : "/onboarding");
+            router.refresh();
+          },
+          isLoggedIn: (address) => isLoggedIn(address),
+          doLogout: async () => {
+            await logout();
+            router.push("/");
+            router.refresh();
+          },
+        }}
+      />
+    </ThirdwebProvider>
   );
 }

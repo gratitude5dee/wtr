@@ -1,7 +1,7 @@
 /**
  * Wallet sessions (goal.md P0-1). Sign-in is proof of key possession: the
- * browser signs a one-time server nonce with the creator's wallet, the server
- * verifies the signature and sets an HMAC-signed, httpOnly session cookie.
+ * wallet signs a one-time SIWE payload (via thirdweb), the server verifies
+ * the signature and sets an HMAC-signed, httpOnly session cookie.
  * No password, no PII; the wallet address is the identity.
  *
  * Without `WTR_SESSION_SECRET` the app stays in single-creator dev mode —
@@ -9,10 +9,9 @@
  * required. This keeps local development working while making the production
  * posture explicit.
  */
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { SESSION_SECRET } from "../../../config/env";
-import { CHAIN } from "../../../config/chain";
+import { SESSION_SECRET, THIRDWEB_CLIENT_ID } from "../../../config/env";
 
 export const SESSION_COOKIE = "wtr-session";
 export const NONCE_COOKIE = "wtr-auth-nonce";
@@ -21,6 +20,11 @@ const NONCE_TTL_MS = 10 * 60 * 1000;
 
 export function sessionsEnabled(): boolean {
   return SESSION_SECRET() !== null;
+}
+
+/** Login UI needs both the cookie-signing key and a thirdweb client id. */
+export function walletAuthEnabled(): boolean {
+  return sessionsEnabled() && THIRDWEB_CLIENT_ID() !== null;
 }
 
 function sign(payload: string): string {
@@ -50,29 +54,21 @@ function unpack(token: string): Record<string, unknown> | null {
   }
 }
 
-export function issueNonce(): { nonce: string; cookieValue: string } {
-  const nonce = randomBytes(16).toString("hex");
-  return { nonce, cookieValue: pack({ nonce, exp: Date.now() + NONCE_TTL_MS }) };
+/**
+ * One-time nonce, bound to the wallet that requested it: a nonce issued for
+ * one address cannot be redeemed with a signature from another, and a
+ * captured signature cannot be replayed once the cookie is consumed.
+ */
+export function issueNonce(nonce: string, address: string): string {
+  return pack({ nonce, address: address.toLowerCase(), exp: Date.now() + NONCE_TTL_MS });
 }
 
-export function readNonce(cookieValue: string): string | null {
+export function readNonce(cookieValue: string): { nonce: string; address: string } | null {
   const payload = unpack(cookieValue);
   if (!payload) return null;
   if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
-  return typeof payload.nonce === "string" ? payload.nonce : null;
-}
-
-/** The exact text the wallet signs. Human-readable on purpose. */
-export function signInMessage(address: string, nonce: string): string {
-  return [
-    "WTR wants you to sign in with your wallet.",
-    "",
-    `Wallet: ${address}`,
-    `Chain: ${CHAIN.name} (${CHAIN.id})`,
-    `Nonce: ${nonce}`,
-    "",
-    "Signing costs nothing and sends no transaction.",
-  ].join("\n");
+  if (typeof payload.nonce !== "string" || typeof payload.address !== "string") return null;
+  return { nonce: payload.nonce, address: payload.address };
 }
 
 export const PENDING_WALLET_COOKIE = "wtr-wallet-pending";

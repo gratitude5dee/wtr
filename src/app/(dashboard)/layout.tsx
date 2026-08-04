@@ -1,7 +1,7 @@
 import { DitherAvatar } from "@/components/dither-kit/avatar";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { WalletConnect } from "@/components/dashboard/wallet-connect";
-import { sessionsEnabled } from "@/lib/auth/session";
+import { walletAuthEnabled } from "@/lib/auth/session";
 import { getCurrentCreator } from "@/lib/dashboard/queries";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export default async function DashboardLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const creator = await getCurrentCreator();
-  const walletAuth = sessionsEnabled();
+  const walletAuth = walletAuthEnabled();
 
   return (
     <div className="flex min-h-screen">
@@ -31,7 +31,7 @@ export default async function DashboardLayout({
           ) : (
             !walletAuth && <div className="text-xs text-muted-foreground">No creator yet</div>
           )}
-          {walletAuth && <WalletConnect signedIn={creator !== null} />}
+          {walletAuth && <WalletConnect />}
         </div>
       </aside>
       <main className="flex-1 p-8">{children}</main>

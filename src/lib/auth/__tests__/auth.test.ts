@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { privateKeyToAccount } from "viem/accounts";
 
-import { AuthError, verifyWalletSignIn } from "../service";
 import {
   issueNonce,
   issuePendingWallet,
@@ -10,18 +8,16 @@ import {
   readPendingWallet,
   readSession,
   sessionsEnabled,
-  signInMessage,
+  walletAuthEnabled,
 } from "../session";
-
-// A well-known test key — never a real wallet.
-const TEST_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
-const account = privateKeyToAccount(TEST_KEY);
 
 beforeEach(() => {
   process.env.WTR_SESSION_SECRET = "test-secret-do-not-use";
+  process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID = "test-client-id";
 });
 afterEach(() => {
   delete process.env.WTR_SESSION_SECRET;
+  delete process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID;
 });
 
 describe("session cookies", () => {
@@ -32,61 +28,39 @@ describe("session cookies", () => {
     expect(readSession("garbage")).toBeNull();
   });
 
-  it("round-trips nonce and pending-wallet cookies", () => {
-    const { nonce, cookieValue } = issueNonce();
-    expect(readNonce(cookieValue)).toBe(nonce);
+  it("round-trips the pending-wallet cookie and rejects tampering", () => {
     const pending = issuePendingWallet("0xdef");
     expect(readPendingWallet(pending)).toBe("0xdef");
+    expect(readPendingWallet(pending.slice(0, -2) + "zz")).toBeNull();
   });
 
-  it("reports sessions disabled without the secret", () => {
+  it("binds the nonce to the requesting wallet", () => {
+    const cookie = issueNonce("nonce-1", "0xAbCd");
+    expect(readNonce(cookie)).toEqual({ nonce: "nonce-1", address: "0xabcd" });
+    expect(readNonce(cookie.slice(0, -2) + "zz")).toBeNull();
+    expect(readNonce("garbage")).toBeNull();
+  });
+
+  it("reports auth disabled without the secret or client id", () => {
     delete process.env.WTR_SESSION_SECRET;
     expect(sessionsEnabled()).toBe(false);
-  });
-});
+    expect(walletAuthEnabled()).toBe(false);
 
-describe("verifyWalletSignIn", () => {
-  it("accepts a signature over the exact sign-in message", async () => {
-    const nonce = "abc123";
-    const signature = await account.signMessage({
-      message: signInMessage(account.address, nonce),
-    });
-    const wallet = await verifyWalletSignIn({
-      address: account.address,
-      signature,
-      nonce,
-    });
-    expect(wallet).toBe(account.address.toLowerCase());
+    process.env.WTR_SESSION_SECRET = "x";
+    delete process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID;
+    expect(sessionsEnabled()).toBe(true);
+    expect(walletAuthEnabled()).toBe(false);
   });
 
-  it("rejects a signature over a different nonce", async () => {
-    const signature = await account.signMessage({
-      message: signInMessage(account.address, "other-nonce"),
-    });
-    await expect(
-      verifyWalletSignIn({ address: account.address, signature, nonce: "abc123" }),
-    ).rejects.toThrow(AuthError);
+  it("treats an empty secret as unset — never an empty HMAC key", () => {
+    process.env.WTR_SESSION_SECRET = "";
+    expect(sessionsEnabled()).toBe(false);
+    expect(walletAuthEnabled()).toBe(false);
   });
 
-  it("rejects a signature from a different wallet", async () => {
-    const other = privateKeyToAccount(
-      "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba",
-    );
-    const nonce = "abc123";
-    const signature = await other.signMessage({
-      message: signInMessage(account.address, nonce),
-    });
-    await expect(
-      verifyWalletSignIn({ address: account.address, signature, nonce }),
-    ).rejects.toThrow(AuthError);
-  });
-
-  it("rejects malformed addresses and signatures", async () => {
-    await expect(
-      verifyWalletSignIn({ address: "not-an-address", signature: "0xaa", nonce: "n" }),
-    ).rejects.toThrow(AuthError);
-    await expect(
-      verifyWalletSignIn({ address: account.address, signature: "not-hex", nonce: "n" }),
-    ).rejects.toThrow(AuthError);
+  it("rejects a session signed with a different secret", () => {
+    const token = issueSession("creator-1", "0xabc");
+    process.env.WTR_SESSION_SECRET = "another-secret";
+    expect(readSession(token)).toBeNull();
   });
 });
