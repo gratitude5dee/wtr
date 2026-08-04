@@ -52,5 +52,11 @@ export const PIL_TERMS_BASE_URI = () =>
 
 export const LOG_LEVEL = () => optional("WTR_LOG_LEVEL", "info");
 
+/**
+ * HMAC key for wallet session cookies. Optional in development: without it
+ * the dashboard falls back to the single dev creator and shows no login.
+ */
+export const SESSION_SECRET = () => process.env.WTR_SESSION_SECRET ?? null;
+
 /** Where server-held ciphertext and public previews live on disk. */
 export const MEDIA_DIR = () => optional("WTR_MEDIA_DIR", "var/media");
