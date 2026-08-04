@@ -12,7 +12,7 @@
  */
 import { createClients } from "../src/lib/chain/clients";
 import { closePool, db } from "../src/lib/db/pool";
-import { log } from "../src/lib/log";
+import { log, redactText } from "../src/lib/log";
 import { createStoryPort } from "../src/lib/pipeline/adapters";
 import {
   LICENSE_PRESETS,
@@ -123,7 +123,9 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (error) => {
-  console.error(error);
+  // Scrubbed, and `message` only: a raw SDK error object can carry request state,
+  // and the SDK chooses the wording of the message.
+  console.error(redactText(error instanceof Error ? error.message : String(error)));
   await closePool().catch(() => {});
   process.exit(1);
 });

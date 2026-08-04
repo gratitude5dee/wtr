@@ -7,6 +7,8 @@
  */
 import { createPublicClient, http } from "viem";
 
+import { redactText } from "../src/lib/log";
+
 import {
   CHAIN,
   CHAIN_ID,
@@ -49,6 +51,15 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  const message = redactText(error instanceof Error ? error.message : String(error));
+  // viem surfaces a DNS failure as a bare "fetch failed", which reads like an
+  // RPC outage. Name the actual cause so the operator overrides WTR_RPC_URL.
+  const unreachable = /fetch failed|ENOTFOUND|EAI_AGAIN|ECONNREFUSED/i.test(message);
+  console.error(
+    unreachable
+      ? `Cannot reach the RPC at ${RPC_URL} (${message}). Check that the host ` +
+          "resolves from this network, or point WTR_RPC_URL at another Aeneid endpoint."
+      : message,
+  );
   process.exit(1);
 });

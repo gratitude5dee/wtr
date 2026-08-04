@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { REDACTED, redact } from "../log";
+import { REDACTED, redact, redactText } from "../log";
 import { formatWei, toWei, weiFromDb, weiToDb } from "../money";
+
+/** A 32-byte key: indistinguishable from a tx hash by shape alone. */
+const KEY_HEX = `0x${"ab".repeat(32)}`;
 
 describe("log redaction", () => {
   it("redacts anything key-shaped", () => {
@@ -29,10 +32,74 @@ describe("log redaction", () => {
     expect(output.media).toBe("[bytes len=4]");
   });
 
-  it("keeps operational identifiers readable", () => {
-    const output = redact({ assetId: "asset-1", ipId: "0xabc", licenseTokenIds: ["1", "2"] });
+  it("redacts the private key under the name this project actually uses", () => {
+    const output = redact({ WTR_WALLET_PRIVATE_KEY: KEY_HEX, private_key: KEY_HEX });
 
-    expect(output).toEqual({ assetId: "asset-1", ipId: "0xabc", licenseTokenIds: ["1", "2"] });
+    expect(output.WTR_WALLET_PRIVATE_KEY).toBe(REDACTED);
+    expect(output.private_key).toBe(REDACTED);
+  });
+
+  it("redacts key-shaped values under field names it has never seen", () => {
+    // Field names are open-ended, so the shape of the value has to be enough.
+    for (const key of ["k", "sk", "pk", "signingKey", "keyMaterial", "wrappedDek", "blob", "raw"]) {
+      expect(redact({ [key]: KEY_HEX })[key]).toBe(REDACTED);
+    }
+    expect(redact({ somethingNobodyAnticipated: KEY_HEX }).somethingNobodyAnticipated).toBe(
+      REDACTED,
+    );
+  });
+
+  it("redacts key material carried inside third-party error text", () => {
+    // Stage handlers log `{ error: failure.message }`, and we do not control an
+    // SDK's error wording.
+    const output = redact({
+      error: `rpc rejected signature for key ${KEY_HEX}`,
+      cause: new Error(`vault write failed: dataKey=${KEY_HEX}`),
+    });
+
+    expect(output.error).not.toContain(KEY_HEX);
+    expect(JSON.stringify(output.cause)).not.toContain(KEY_HEX);
+    expect(output.error).toContain("rpc rejected signature");
+  });
+
+  it("redacts key material in the log message itself", () => {
+    expect(redactText(`decrypting with ${KEY_HEX}`)).toBe(`decrypting with ${REDACTED}`);
+  });
+
+  it("keeps operational identifiers readable, in either spelling", () => {
+    const txHash = `0x${"12".repeat(32)}`;
+    // A content address published to IPFS: an operator has to be able to fetch it.
+    const uri = "https://ipfs.io/ipfs/bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy";
+    const output = redact({
+      assetId: "asset-1",
+      ipId: "0xabc",
+      licenseTokenIds: ["1", "2"],
+      // Hash-shaped but must stay legible, or an on-chain failure is untraceable.
+      txHash,
+      metadata_root: txHash,
+      metadataRoot: txHash,
+      uri,
+    });
+
+    expect(output).toEqual({
+      assetId: "asset-1",
+      ipId: "0xabc",
+      licenseTokenIds: ["1", "2"],
+      txHash,
+      metadata_root: txHash,
+      metadataRoot: txHash,
+      uri,
+    });
+  });
+
+  it("does not swallow a whole URL path when scrubbing free text", () => {
+    // Redacting the whole URL would leave an operator unable to fetch the
+    // document the log line is about.
+    const scrubbed = redactText(
+      `publish failed for https://ipfs.io/ipfs/bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy`,
+    );
+
+    expect(scrubbed).toContain("https://ipfs.io/ipfs/");
   });
 
   it("serialises bigints without precision loss", () => {
