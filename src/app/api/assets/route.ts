@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { hasCurrentConsent } from "@/lib/consent/service";
+import { applyTier1Labels, serverTier1Labels } from "@/lib/labels/tier1";
 import { getCurrentCreator } from "@/lib/dashboard/queries";
 import { log } from "@/lib/log";
 import { modalityForFilename } from "@/lib/upload/modality";
@@ -44,6 +45,21 @@ export async function POST(request: Request): Promise<NextResponse> {
       modality,
       contentSha256,
     });
+    if (!result.existing) {
+      // Best-effort: the asset is already committed, so a label failure must
+      // not turn a successful registration into a client-facing error.
+      try {
+        await applyTier1Labels(
+          result.assetId,
+          serverTier1Labels({ filename, mimeType, modality, byteSize }),
+        );
+      } catch (labelError) {
+        log.error("tier-1 labeling failed", {
+          assetId: result.assetId,
+          error: (labelError as Error).message,
+        });
+      }
+    }
     return NextResponse.json(result, { status: result.existing ? 200 : 201 });
   } catch (error) {
     const failure = error as Error;
