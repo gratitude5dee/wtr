@@ -125,9 +125,18 @@ export function createMockTraceFetch(): typeof fetch {
           return jsonResponse(400, { mock: true, error: "seq must be 1-100" });
         }
         // Updates may arrive before registration (documented at-least-once
-        // semantics), so an unknown data_id is still accepted.
-        const record =
-          byDataId.get(dataId) ?? { dataId, payloadHash: "", updates: new Map<number, string>() };
+        // semantics), so an unknown data_id is still accepted — its history is
+        // persisted under a synthetic key so later resends dedupe correctly.
+        let record = byDataId.get(dataId);
+        if (!record) {
+          const syntheticKey = `data_id:${dataId}`;
+          record = records.get(syntheticKey);
+          if (!record) {
+            record = { dataId, payloadHash: "", updates: new Map<number, string>() };
+            records.set(syntheticKey, record);
+          }
+          byDataId.set(dataId, record);
+        }
         const eventHash = stripHexPrefix(
           await sha256Canonical({
             prev: item.prev_metadata_root,

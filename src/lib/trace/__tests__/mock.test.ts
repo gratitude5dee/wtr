@@ -99,6 +99,27 @@ describe("mock Trace transport", () => {
     ).rejects.toBeInstanceOf(TraceConflictError);
   });
 
+  it("remembers updates that arrive before registration", async () => {
+    const trace = client(createMockTraceFetch());
+    const params = {
+      dataId: "00000000-0000-4000-8000-000000000000",
+      document: makeDocument("anon-1"),
+      prevMetadataRoot: `sha256:${"e".repeat(64)}` as const,
+      updateCount: 0,
+      occurredAt: "2026-02-02T00:00:00.000Z",
+      batchId: "b1",
+    };
+
+    const first = await trace.updateMetadata(params);
+    expect(first.updateCount).toBe(1);
+    // Identical resend is a duplicate (idempotent success)…
+    await expect(trace.updateMetadata(params)).resolves.toBeDefined();
+    // …but a different document at the same seq is a conflict.
+    await expect(
+      trace.updateMetadata({ ...params, document: makeDocument("anon-9") }),
+    ).rejects.toBeInstanceOf(TraceConflictError);
+  });
+
   it("stores provider policies", async () => {
     const trace = client(createMockTraceFetch());
     await expect(

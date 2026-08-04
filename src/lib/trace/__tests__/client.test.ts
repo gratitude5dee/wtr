@@ -263,6 +263,22 @@ describe("TraceClient metadata updates", () => {
     expect(attempts).toHaveLength(0);
   });
 
+  it("rejects a 409 whose body has no matching item instead of reporting success", async () => {
+    const { fetchImpl, attempts } = makeFetch([{ status: 409, body: { error: "conflict" } }]);
+
+    await expect(
+      client(fetchImpl).updateMetadata({
+        dataId: "d1",
+        document: makeDocument(),
+        prevMetadataRoot: `sha256:${"c".repeat(64)}`,
+        updateCount: 0,
+        occurredAt: "2026-02-01T00:00:00.000Z",
+        batchId: "b",
+      }),
+    ).rejects.toThrow(/matching item/);
+    expect(attempts).toHaveLength(1);
+  });
+
   it("surfaces an update conflict without retrying", async () => {
     const { fetchImpl, attempts } = makeFetch([
       { status: 409, body: { items: [{ data_id: "d1", seq: 1, status: "conflict" }] } },

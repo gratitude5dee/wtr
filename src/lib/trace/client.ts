@@ -188,6 +188,7 @@ export class TraceClient {
     });
     const item = response.items?.find((it) => it.data_id === params.dataId);
     if (item?.status === "conflict") throw new TraceConflictError(params.dataId);
+    if (!item) throw new Error("Trace update response did not contain a matching item");
     return {
       dataId: params.dataId,
       prevMetadataRoot: params.prevMetadataRoot,
