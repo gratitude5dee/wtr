@@ -3,19 +3,65 @@
  * and pixel dimensions, and the plaintext never leaves the device — so the
  * numbers are measured here and only the numbers are sent.
  */
+import { ahash64, dhash64, phash64 } from "../labels/perceptual-hash";
 import type { Modality } from "./modality";
 
 export interface Measured {
   duration_s?: number;
   width?: number;
   height?: number;
+  ahash64?: string;
+  dhash64?: string;
+  phash64?: string;
+}
+
+type Drawable = ImageBitmap | HTMLVideoElement;
+
+/** Downscales to w×h and returns row-major grayscale (0–255). */
+function grayscale(source: Drawable, w: number, h: number): number[] | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(source, 0, 0, w, h);
+  const { data } = ctx.getImageData(0, 0, w, h);
+  const gray: number[] = [];
+  for (let i = 0; i < w * h; i += 1) {
+    gray.push(0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]);
+  }
+  return gray;
+}
+
+/** Perceptual fingerprints of one frame (goal.md P0-3 file.hashes). */
+function hashFrame(source: Drawable): Partial<Measured> {
+  const g8 = grayscale(source, 8, 8);
+  const g9 = grayscale(source, 9, 8);
+  const g32 = grayscale(source, 32, 32);
+  if (!g8 || !g9 || !g32) return {};
+  return { ahash64: ahash64(g8), dhash64: dhash64(g9), phash64: phash64(g32) };
 }
 
 function measureImage(file: File): Promise<Measured> {
   return createImageBitmap(file).then((bitmap) => {
-    const result = { width: bitmap.width, height: bitmap.height };
+    const result: Measured = { width: bitmap.width, height: bitmap.height, ...hashFrame(bitmap) };
     bitmap.close();
     return result;
+  });
+}
+
+/** First-frame perceptual hashes for video, once metadata is loaded. */
+function hashVideoFrame(video: HTMLVideoElement): Promise<Partial<Measured>> {
+  return new Promise((resolve) => {
+    const done = () => resolve(video.videoWidth > 0 ? hashFrame(video) : {});
+    if (video.readyState >= 2) return done();
+    video.onseeked = done;
+    video.onerror = () => resolve({});
+    try {
+      video.currentTime = 0;
+    } catch {
+      resolve({});
+    }
   });
 }
 
@@ -27,7 +73,7 @@ function measureMediaElement(file: File, kind: "audio" | "video"): Promise<Measu
       URL.revokeObjectURL(url);
       element.removeAttribute("src");
     };
-    element.preload = "metadata";
+    element.preload = kind === "video" ? "auto" : "metadata";
     element.onloadedmetadata = () => {
       const result: Measured = {};
       if (Number.isFinite(element.duration)) result.duration_s = element.duration;
@@ -35,6 +81,11 @@ function measureMediaElement(file: File, kind: "audio" | "video"): Promise<Measu
         const video = element as HTMLVideoElement;
         if (video.videoWidth > 0) result.width = video.videoWidth;
         if (video.videoHeight > 0) result.height = video.videoHeight;
+        void hashVideoFrame(video).then((hashes) => {
+          cleanup();
+          resolve({ ...result, ...hashes });
+        });
+        return;
       }
       cleanup();
       resolve(result);

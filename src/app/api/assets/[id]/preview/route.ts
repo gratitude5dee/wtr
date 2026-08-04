@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 
 import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { enqueueTier2, runTier2Job } from "@/lib/labels/tier2";
 import { log } from "@/lib/log";
 import { PreviewError, readPreview, storePreview } from "@/lib/upload/preview-store";
 
@@ -25,6 +26,10 @@ export async function PUT(request: NextRequest, context: Context): Promise<NextR
   try {
     const bytes = new Uint8Array(await request.arrayBuffer());
     const previewUrl = await storePreview(creator.id, id, bytes);
+    // Tier-2 labeling is queued off the preview and runs after the response
+    // is sent — the upload flow never blocks on a model call.
+    const state = await enqueueTier2(id);
+    if (state === "queued") after(() => runTier2Job(id));
     return NextResponse.json({ previewUrl });
   } catch (error) {
     if (error instanceof PreviewError) {

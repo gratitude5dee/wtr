@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { LABEL_CONFIRM_THRESHOLD } from "../../../../../config/env";
 import { LabelReview } from "@/components/dashboard/label-review";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -193,6 +194,7 @@ export default async function AssetDetailPage({
             assetId={asset.id}
             labels={asset.labels}
             editable={asset.stage === "IN_TRAY" || asset.stage === "LABELED"}
+            confirmThreshold={LABEL_CONFIRM_THRESHOLD()}
           />
           {asset.stage !== "IN_TRAY" && asset.stage !== "LABELED" && (
             <p className="text-xs text-muted-foreground">

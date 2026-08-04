@@ -45,6 +45,24 @@ describe("validateMeasuredLabels", () => {
     ]);
   });
 
+  it("accepts 64-bit perceptual hashes as 16 lowercase hex chars", () => {
+    const labels = validateMeasuredLabels({
+      ahash64: "00ff00ff00ff00ff",
+      dhash64: "0123456789abcdef",
+      phash64: "fedcba9876543210",
+    });
+    expect(labels.map((l) => l.key).sort()).toEqual(["ahash64", "dhash64", "phash64"]);
+    for (const label of labels) expect(label.confidence).toBe(1);
+  });
+
+  it("rejects malformed perceptual hashes", () => {
+    expect(() => validateMeasuredLabels({ phash64: "TOOSHORT" })).toThrow(MeasuredLabelError);
+    expect(() => validateMeasuredLabels({ phash64: 42 })).toThrow(MeasuredLabelError);
+    expect(() => validateMeasuredLabels({ ahash64: "00FF00FF00FF00FF" })).toThrow(
+      MeasuredLabelError,
+    );
+  });
+
   it("rejects unknown keys — the allowlist is strict", () => {
     expect(() => validateMeasuredLabels({ gps_lat: 1 })).toThrow(MeasuredLabelError);
   });
