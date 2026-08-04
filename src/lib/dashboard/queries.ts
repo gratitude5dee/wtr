@@ -3,6 +3,9 @@
  * `asset`, `listing`, `sale`, `payout` — plus the `asset_event` log for
  * timelines. Nothing in this module writes.
  */
+import { cookies } from "next/headers";
+
+import { readSession, SESSION_COOKIE, sessionsEnabled } from "../auth/session";
 import { db, type Queryable } from "../db/pool";
 import { weiFromDb } from "../money";
 
@@ -21,10 +24,20 @@ export interface CreatorRow {
 }
 
 /**
- * Phase 1 has no auth yet (wallet connect lands with P0-1): the dashboard
- * shows the earliest creator row. One query to swap out once sessions exist.
+ * The signed-in creator. With `WTR_SESSION_SECRET` set, identity comes from
+ * the HMAC-signed wallet session cookie; without it (local development) the
+ * dashboard falls back to the earliest creator row.
  */
 export async function getCurrentCreator(q: Queryable = db): Promise<CreatorRow | null> {
+  let where = "ORDER BY created_at ASC LIMIT 1";
+  const params: string[] = [];
+  if (sessionsEnabled()) {
+    const jar = await cookies();
+    const session = readSession(jar.get(SESSION_COOKIE)?.value ?? "");
+    if (!session) return null;
+    where = "WHERE id = $1";
+    params.push(session.creatorId);
+  }
   const result = await q.query<{
     id: string;
     anon_id: string;
@@ -38,7 +51,8 @@ export async function getCurrentCreator(q: Queryable = db): Promise<CreatorRow |
   }>(
     `SELECT id, anon_id, display_name, avatar_seed, wallet_address,
             kyc_status, kyc_country, tax_status, payout_pref
-     FROM creator ORDER BY created_at ASC LIMIT 1`,
+     FROM creator ${where}`,
+    params,
   );
   const row = result.rows[0];
   if (!row) return null;

@@ -52,5 +52,18 @@ export const PIL_TERMS_BASE_URI = () =>
 
 export const LOG_LEVEL = () => optional("WTR_LOG_LEVEL", "info");
 
+/**
+ * HMAC key for wallet session cookies. Optional in development: without it
+ * the dashboard falls back to the single dev creator and shows no login.
+ * Empty counts as unset — an empty HMAC key would make cookies forgeable.
+ */
+export const SESSION_SECRET = () => process.env.WTR_SESSION_SECRET || null;
+
+/** thirdweb client id (public). Wallet login needs this plus the secret above. */
+export const THIRDWEB_CLIENT_ID = () => process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || null;
+
+/** Domain shown in (and verified against) the SIWE payload. */
+export const AUTH_DOMAIN = () => optional("WTR_AUTH_DOMAIN", "localhost:3000");
+
 /** Where server-held ciphertext and public previews live on disk. */
 export const MEDIA_DIR = () => optional("WTR_MEDIA_DIR", "var/media");

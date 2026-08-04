@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { sessionsEnabled } from "@/lib/auth/session";
 import { CURRENT_PRIVACY, CURRENT_TOS } from "@/lib/consent/documents";
 import { hasCurrentConsent } from "@/lib/consent/service";
 import { getCurrentCreator } from "@/lib/dashboard/queries";
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 const ERROR_TEXT: Record<string, string> = {
   name: "Enter a display name.",
   accept: "You must accept the terms before creating an account.",
-  wallet: "That wallet address is not a valid 0x… address.",
+  wallet: "Connect and sign with your wallet first, then create the account.",
 };
 
 export default async function OnboardingPage({
@@ -90,15 +91,17 @@ export default async function OnboardingPage({
             <Label htmlFor="displayName">Display name</Label>
             <Input id="displayName" name="displayName" required placeholder="How you appear to labs" />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="walletAddress">Wallet address (optional, Aeneid)</Label>
-            <Input
-              id="walletAddress"
-              name="walletAddress"
-              placeholder="0x… — you can connect later"
-              pattern="0x[0-9a-fA-F]{40}"
-            />
-          </div>
+          {!sessionsEnabled() && (
+            <div className="space-y-2">
+              <Label htmlFor="walletAddress">Wallet address (optional, Aeneid)</Label>
+              <Input
+                id="walletAddress"
+                name="walletAddress"
+                placeholder="0x… — you can connect later"
+                pattern="0x[0-9a-fA-F]{40}"
+              />
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Checkbox id="accept" name="accept" required />
             <Label htmlFor="accept" className="text-sm font-normal">
