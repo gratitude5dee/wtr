@@ -66,7 +66,8 @@ export function BuyCard({
       </Button>
       <p className="text-xs text-muted-foreground">
         Mints a real license token on Aeneid to your wallet; the fee is read live from the
-        chain, never hardcoded.
+        chain, never hardcoded. Testnet demo: the platform wallet fronts the mint fee — you
+        are not charged.
       </p>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
     </div>
