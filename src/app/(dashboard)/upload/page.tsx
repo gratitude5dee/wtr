@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { PageHeader } from "@/components/dashboard/page-header";
 import { UploadQueue } from "@/components/dashboard/upload-queue";
 import { hasCurrentConsent } from "@/lib/consent/service";
 import { getCurrentCreator } from "@/lib/dashboard/queries";
@@ -14,7 +15,11 @@ export default async function UploadPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Upload</h1>
+      <PageHeader
+        kicker="Creator"
+        title="Upload"
+        description="Hashed and encrypted on your device — originals never leave it in the clear."
+      />
       <UploadQueue />
     </div>
   );

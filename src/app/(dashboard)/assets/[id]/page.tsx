@@ -15,7 +15,7 @@ import {
   PRESET_SENTENCE,
   shortHash,
   STAGE_LABEL,
-  STAGE_TONE,
+  STAGE_TINT,
 } from "@/lib/dashboard/format";
 import { getAssetDetail, getCurrentCreator } from "@/lib/dashboard/queries";
 import { getLicenseChoice } from "@/lib/listing/service";
@@ -84,7 +84,7 @@ export default async function AssetDetailPage({
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">{asset.filename ?? asset.id.slice(0, 8)}</h1>
-        <Badge variant={STAGE_TONE[asset.stage] ?? "outline"}>
+        <Badge variant="outline" className={STAGE_TINT[asset.stage]}>
           {STAGE_LABEL[asset.stage] ?? asset.stage}
         </Badge>
         {asset.duplicateClaimFlag && (

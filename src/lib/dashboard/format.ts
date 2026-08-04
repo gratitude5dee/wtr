@@ -16,14 +16,15 @@ export const STAGE_LABEL: Record<string, string> = {
   FAILED_REGISTER: "Registration failed",
 };
 
-export const STAGE_TONE: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  IN_TRAY: "outline",
-  LABELED: "secondary",
-  REGISTERED: "secondary",
-  LISTED: "default",
-  SOLD: "default",
-  SETTLED: "default",
-  FAILED_REGISTER: "destructive",
+/** Signal-tinted badge classes per stage (exchange design: dim fill, tinted text). */
+export const STAGE_TINT: Record<string, string> = {
+  IN_TRAY: "border-border bg-transparent text-muted-foreground",
+  LABELED: "border-transparent bg-[rgb(var(--tint-purple)/0.12)] text-[rgb(var(--tint-purple))]",
+  REGISTERED: "border-transparent bg-[rgb(var(--tint-blue)/0.12)] text-[rgb(var(--tint-blue))]",
+  LISTED: "border-transparent bg-[rgb(var(--tint-green)/0.12)] text-[rgb(var(--tint-green))]",
+  SOLD: "border-transparent bg-[rgb(var(--tint-green)/0.12)] text-[rgb(var(--tint-green))]",
+  SETTLED: "border-transparent bg-[rgb(var(--tint-green)/0.18)] text-[rgb(var(--tint-green))]",
+  FAILED_REGISTER: "border-transparent bg-[rgb(var(--tint-red)/0.12)] text-[rgb(var(--tint-red))]",
 };
 
 /** Event log types (pipeline `EVENT` values) in the creator's words, not ours. */
