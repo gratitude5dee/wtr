@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -38,7 +40,11 @@ export default async function RequestsPage() {
           <TableBody>
             {requests.map((request) => (
               <TableRow key={request.id}>
-                <TableCell className="font-medium">{request.title}</TableCell>
+                <TableCell className="font-medium">
+                  <Link className="underline underline-offset-2" href={`/requests/${request.id}`}>
+                    {request.title}
+                  </Link>
+                </TableCell>
                 <TableCell>{PRESET_NAME[request.licensePreset] ?? request.licensePreset}</TableCell>
                 <TableCell className="font-mono text-xs">{formatIp(request.budgetWei)}</TableCell>
                 <TableCell>

@@ -29,6 +29,8 @@ export const EVENT = {
   LICENSE_CHANGED: "asset.license_changed",
   TAKEDOWN: "asset.takedown",
   DUPLICATE_CLAIM_FLAGGED: "asset.duplicate_claim_flagged",
+  SUBMITTED_TO_REQUEST: "asset.submitted_to_request",
+  SUBMISSION_WITHDRAWN: "asset.submission_withdrawn",
 } as const;
 
 export type EventType = (typeof EVENT)[keyof typeof EVENT];
