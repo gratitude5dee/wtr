@@ -57,7 +57,11 @@ function hashVideoFrame(video: HTMLVideoElement): Promise<Partial<Measured>> {
     const done = () => {
       if (settled) return;
       settled = true;
-      resolve(video.videoWidth > 0 ? hashFrame(video) : {});
+      // Only hash once a frame is actually decodable — drawing an element at
+      // readyState < 2 paints a blank canvas, and identical blank-frame
+      // fingerprints would cause bogus similarity matches.
+      const ready = video.readyState >= 2 && video.videoWidth > 0;
+      resolve(ready ? hashFrame(video) : {});
     };
     if (video.readyState >= 2) return done();
     // A same-position seek can be a no-op in some browsers (no `seeked`), so
