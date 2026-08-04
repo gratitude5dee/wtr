@@ -8,6 +8,7 @@
  * creator's browser.
  */
 import { db } from "../db/pool";
+import { log } from "../log";
 import { mediaStore } from "../storage/media-store";
 
 /** Bad input, safe to echo to the caller. */
@@ -131,7 +132,10 @@ export async function appendChunk(
   await store.truncateCiphertext(assetId, offset);
   try {
     await store.writeCiphertextChunk(assetId, offset, chunk);
-  } catch {
+  } catch (error) {
+    // The client only needs a retryable 500; the real cause (storage outage,
+    // bad token, full disk) goes to the log, which scrubs key-shaped values.
+    log.error("ciphertext chunk write failed", { assetId, error: (error as Error).message });
     throw new CiphertextError("storage out of sync", 500);
   }
 
