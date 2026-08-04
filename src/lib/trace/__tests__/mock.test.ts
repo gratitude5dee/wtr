@@ -120,6 +120,35 @@ describe("mock Trace transport", () => {
     ).rejects.toBeInstanceOf(TraceConflictError);
   });
 
+  it("keeps pre-registration update history after the record is registered", async () => {
+    const fetchImpl = createMockTraceFetch();
+    const trace = client(fetchImpl);
+    // The registration's deterministic data_id, learned by registering with an
+    // identically-configured transport first.
+    const { dataId } = await client(createMockTraceFetch()).registerData({
+      document: makeDocument("anon-1"),
+      ...registerParams,
+    });
+
+    const params = {
+      dataId,
+      document: makeDocument("anon-1"),
+      prevMetadataRoot: `sha256:${"e".repeat(64)}` as const,
+      updateCount: 0,
+      occurredAt: "2026-02-02T00:00:00.000Z",
+      batchId: "b1",
+    };
+    await trace.updateMetadata(params);
+    // Registration arrives after the update (at-least-once delivery)…
+    await trace.registerData({ document: makeDocument("anon-1"), ...registerParams });
+    // …and the earlier update history must survive: identical resend is a
+    // duplicate, a different document at the same seq is a conflict.
+    await expect(trace.updateMetadata(params)).resolves.toBeDefined();
+    await expect(
+      trace.updateMetadata({ ...params, document: makeDocument("anon-9") }),
+    ).rejects.toBeInstanceOf(TraceConflictError);
+  });
+
   it("stores provider policies", async () => {
     const trace = client(createMockTraceFetch());
     await expect(

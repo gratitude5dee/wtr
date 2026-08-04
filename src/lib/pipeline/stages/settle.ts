@@ -13,7 +13,7 @@
  */
 import { log } from "../../log";
 import { stableBatchId } from "../../trace/client";
-import type { Sha256Ref } from "../../trace/schema";
+import { toSha256Ref } from "../../trace/schema";
 import type { StageDeps } from "../deps";
 import { hasEvent, lastTraceSeq } from "../store";
 import { buildTraceDocument } from "../trace-document";
@@ -126,10 +126,13 @@ export function createSettleHandler(deps: StageDeps): StageHandler {
           assetId,
           saleId: sale.id,
         });
+        // Assets registered before the sha256: canonical form stored 0x roots;
+        // normalize so their payouts still chain correctly.
+        const prevMetadataRoot = toSha256Ref(asset.traceMetadataRoot);
         const updated = await deps.ports.trace.updateMetadata({
           dataId: asset.traceDataId,
           document,
-          prevMetadataRoot: asset.traceMetadataRoot as Sha256Ref,
+          prevMetadataRoot,
           updateCount: asset.traceUpdateCount,
           occurredAt: creditedAt.toISOString(),
           batchId,
@@ -145,7 +148,7 @@ export function createSettleHandler(deps: StageDeps): StageHandler {
             payout_id: payout.id,
             amount_wei: payout.amountWei.toString(),
             payment_credited_at: creditedAt.toISOString(),
-            prev_metadata_root: asset.traceMetadataRoot,
+            prev_metadata_root: prevMetadataRoot,
             metadata_root: updated.metadataRoot,
             batch_id: batchId,
             ...(deps.ports.trace.mock ? { trace_mock: true } : {}),
