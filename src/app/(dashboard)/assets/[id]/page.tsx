@@ -21,6 +21,8 @@ import { getLicenseChoice } from "@/lib/listing/service";
 import { formatWei } from "@/lib/money";
 
 import { LicensePicker } from "@/components/dashboard/license-picker";
+import { TakedownCard } from "@/components/dashboard/takedown-card";
+import { isWithdrawn } from "@/lib/takedown/service";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +72,7 @@ export default async function AssetDetailPage({
   const preset = asset.listing?.licensePreset ?? null;
   const choice = await getLicenseChoice(asset.id);
   const choiceEditable = asset.stage === "IN_TRAY" || asset.stage === "LABELED";
+  const withdrawn = await isWithdrawn(asset.id);
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -81,6 +84,7 @@ export default async function AssetDetailPage({
         {asset.duplicateClaimFlag && (
           <Badge variant="destructive">duplicate claim — under human review</Badge>
         )}
+        {withdrawn && <Badge variant="destructive">withdrawn from sale</Badge>}
       </div>
 
       <Card>
@@ -233,6 +237,8 @@ export default async function AssetDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {!withdrawn && !choiceEditable && <TakedownCard assetId={asset.id} />}
 
       <Separator />
       <Link className="text-sm text-muted-foreground underline" href="/assets">
