@@ -75,7 +75,7 @@ async function main(): Promise<void> {
   const filePath = process.argv[2];
   if (!filePath) throw new Error("usage: npm run e2e -- path/to/audio.wav");
 
-  const clients = createClients();
+  const clients = await createClients();
   const trace = new TraceClient({
     baseUrl: TRACE_BASE_URL(),
     apiKey: TRACE_API_KEY(),
@@ -131,6 +131,7 @@ async function main(): Promise<void> {
   const access = await clients.cdr.consumer.accessCDR({
     uuid: asset.cdrVaultUuid,
     accessAuxData,
+    timeoutMs: 120_000,
   });
   console.log(
     `cdr read path ok: recovered ${access.dataKey.byteLength} bytes of key material ` +

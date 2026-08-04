@@ -51,18 +51,22 @@ export function createMediaPort(params: {
       // `uploadFile` encrypts client-side, pushes the ciphertext to IPFS and
       // seals only {cid, key} in the vault. `uploadCDR` must never be used for
       // media: vault payloads are capped at 1024 bytes on-chain.
-      const ownerData = encodeOwnerWriteConditionData(owner);
       const result = await params.clients.cdr.uploader.uploadFile({
         content,
         storageProvider: params.clients.storage,
         updatable: false,
         writeConditionAddr: OWNER_WRITE_CONDITION,
-        writeConditionData: ownerData,
-        // Staging gate: only the owner can read this vault. The license-gated
-        // vault is allocated in 3d, once `ipId` exists.
-        readConditionAddr: OWNER_WRITE_CONDITION,
-        readConditionData: ownerData,
+        writeConditionData: encodeOwnerWriteConditionData(owner),
+        // Staging gate: only the owner can read this vault, expressed as an
+        // EOA-as-read-condition — `OwnerWriteCondition` is write-only and
+        // reverts if used as a read gate. The license-gated vault is
+        // allocated in 3d, once `ipId` exists.
+        readConditionAddr: owner,
+        readConditionData: "0x",
         accessAuxData: "0x",
+        // EOAs have no code, so the SDK's condition-contract preflight
+        // (`checkReadCondition` staticcall) must be skipped.
+        skipConditionValidation: SKIP_CONDITION_VALIDATION,
       });
       return {
         cid: result.cid,
@@ -124,6 +128,7 @@ export function createCdrPort(clients: WtrClients): CdrPort {
       const { dataKey } = await clients.cdr.consumer.accessCDR({
         uuid: vaultUuid,
         accessAuxData: "0x",
+        timeoutMs: 120_000,
       });
       return dataKey;
     },

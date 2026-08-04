@@ -36,7 +36,7 @@ export const TRACE_PROVIDER = () => optional("WTR_TRACE_PROVIDER", "wtr");
  * Story-API REST base URL used by `@piplabs/cdr-sdk` to read DKG partial
  * decryptions (the CDR read path). This is NOT the EVM JSON-RPC endpoint.
  */
-export const CDR_API_URL = () => optional("WTR_CDR_API_URL", "http://127.0.0.1:1317");
+export const CDR_API_URL = () => optional("WTR_CDR_API_URL", "http://172.192.41.96:1317");
 
 /** IPFS HTTP API + gateway used by the CDR storage provider. */
 export const IPFS_API_URL = () => optional("WTR_IPFS_API_URL", "http://127.0.0.1:5001");

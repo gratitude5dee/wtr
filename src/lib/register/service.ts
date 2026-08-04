@@ -90,7 +90,7 @@ export async function registerAsset(creatorId: string, assetId: string): Promise
   if (!choice.preset || !choice.askPriceWei) throw new RegisterError("choose license terms first");
   const { preset, askPriceWei } = choice;
 
-  const clients = createClients();
+  const clients = await createClients();
   const trace = new TraceClient({
     baseUrl: TRACE_BASE_URL(),
     apiKey: TRACE_API_KEY(),
