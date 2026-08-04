@@ -92,7 +92,17 @@ export function createMockTraceFetch(): typeof fetch {
         const existing = records.get(key);
         let status: "accepted" | "duplicate" | "conflict";
         if (!existing) {
-          records.set(key, { dataId, payloadHash, updates: new Map() });
+          // An update may have arrived before this registration (at-least-once
+          // delivery); adopt its record so the seq history it accumulated
+          // keeps deduping and conflicting correctly.
+          const preRegistered = records.get(`data_id:${dataId}`);
+          if (preRegistered) {
+            preRegistered.payloadHash = payloadHash;
+            records.set(key, preRegistered);
+            records.delete(`data_id:${dataId}`);
+          } else {
+            records.set(key, { dataId, payloadHash, updates: new Map() });
+          }
           status = "accepted";
         } else if (existing.payloadHash === payloadHash) {
           status = "duplicate";
