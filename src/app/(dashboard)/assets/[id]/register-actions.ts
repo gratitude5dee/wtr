@@ -22,7 +22,7 @@ export async function registerAssetAction(assetId: string): Promise<RegisterStat
     if (failed) {
       // Sub-step progress is preserved; the same button retries by resuming.
       return {
-        error: `registration stopped at ${failed.stage} — your progress is saved, retry to resume`,
+        error: "registration stopped part-way — your progress is saved, retry to resume",
         registered: false,
       };
     }

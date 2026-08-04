@@ -20,6 +20,7 @@ import { createMediaPort, createPorts } from "../pipeline/adapters";
 import { PgAssetStore } from "../pipeline/pg-store";
 import { getLicenseChoice } from "../listing/service";
 import { TraceClient } from "../trace/client";
+import { assertAssetId } from "../upload/ciphertext-store";
 
 /** Safe to echo to the creator. */
 export class RegisterError extends Error {}
@@ -102,6 +103,7 @@ export async function registerAsset(creatorId: string, assetId: string): Promise
   ports.media = {
     ...createMediaPort({ clients, mediaDir: MEDIA_DIR() }),
     async readPlaintext() {
+      assertAssetId(assetId);
       const filePath = path.join(MEDIA_DIR(), "ciphertext", `${assetId}.bin`);
       return new Uint8Array(await fs.readFile(filePath));
     },
