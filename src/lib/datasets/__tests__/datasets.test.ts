@@ -318,6 +318,43 @@ describe("exportSnapshot", () => {
     expect(q.calls.some((c) => c.sql.includes("preference_pair"))).toBe(false);
   });
 
+  it("skips the per-asset provenance reads unless the card is asked for", async () => {
+    const rowsets = () =>
+      fakeQueryable([
+        [
+          {
+            id: snapshot.id,
+            dataset_id: "d1",
+            filters: {},
+            asset_ids: ["a1"],
+            item_count: 1,
+            created_at: new Date("2026-08-02T00:00:00Z"),
+          },
+        ],
+        [{ id: "d1", owner_creator_id: "c1", name: "d", filters: {}, created_at: new Date(), snapshot_count: 1 }],
+        [
+          {
+            asset_id: "a1",
+            filename: "rain.wav",
+            modality: "audio",
+            preview_url: null,
+            license_preset: "WTR-TRAIN-NONEXCLUSIVE",
+            creator_anon_id: "anon-1",
+            content_sha256: "a".repeat(64),
+            ip_id: null,
+            labels: { caption: "rain" },
+          },
+        ],
+      ]);
+    const dataOnly = rowsets();
+    await exportSnapshot(snapshot.id, "sft_jsonl", dataOnly);
+    expect(dataOnly.calls.some((c) => c.sql.includes("FROM asset WHERE id"))).toBe(false);
+
+    const withCard = rowsets();
+    await exportSnapshot(snapshot.id, "sft_jsonl", withCard, { withTraceDocuments: true });
+    expect(withCard.calls.some((c) => c.sql.includes("FROM asset WHERE id"))).toBe(true);
+  });
+
   it("reports a missing snapshot", async () => {
     await expect(exportSnapshot("s1", "sft_jsonl", fakeQueryable([[]]))).rejects.toThrow(
       /no longer exists/,

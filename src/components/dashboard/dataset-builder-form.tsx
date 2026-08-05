@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import {
   createDatasetAction,
@@ -23,9 +23,27 @@ export interface DatasetBuilderDefaults {
   kyc?: boolean;
 }
 
+interface FilterState {
+  modality: string;
+  preset: string;
+  q: string;
+  kyc: boolean;
+}
+
+function stateOf(defaults: DatasetBuilderDefaults): FilterState {
+  return {
+    modality: defaults.modality ?? "",
+    preset: defaults.preset ?? "",
+    q: defaults.q ?? "",
+    kyc: defaults.kyc ?? false,
+  };
+}
+
 /**
- * The builder. Filter changes reload the page through the preview form so the
- * match count beside it is always the live count for what would be saved.
+ * The builder. The match count comes from the server, so the filters are only
+ * saveable once they have been previewed — editing a control without pressing
+ * "Update preview" disables Save rather than quietly saving a query the count
+ * on screen never described.
  */
 export function DatasetBuilderForm({
   defaults,
@@ -34,24 +52,38 @@ export function DatasetBuilderForm({
   defaults: DatasetBuilderDefaults;
   matchCount: number;
 }) {
+  const previewed = stateOf(defaults);
+  const [filters, setFilters] = useState<FilterState>(previewed);
   const [state, formAction, pending] = useActionState<DatasetFormState, FormData>(
     createDatasetAction,
     { error: null, message: null },
   );
+  const dirty =
+    filters.modality !== previewed.modality ||
+    filters.preset !== previewed.preset ||
+    filters.q !== previewed.q ||
+    filters.kyc !== previewed.kyc;
 
   return (
     <div className="space-y-5">
       <form method="get" className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="q">Filename contains</Label>
-          <Input id="q" name="q" defaultValue={defaults.q ?? ""} placeholder="rain" />
+          <Input
+            id="q"
+            name="q"
+            value={filters.q}
+            onChange={(event) => setFilters({ ...filters, q: event.target.value })}
+            placeholder="rain"
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="modality">Modality</Label>
           <select
             id="modality"
             name="modality"
-            defaultValue={defaults.modality ?? ""}
+            value={filters.modality}
+            onChange={(event) => setFilters({ ...filters, modality: event.target.value })}
             className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
           >
             <option value="">Any</option>
@@ -67,7 +99,8 @@ export function DatasetBuilderForm({
           <select
             id="preset"
             name="preset"
-            defaultValue={defaults.preset ?? ""}
+            value={filters.preset}
+            onChange={(event) => setFilters({ ...filters, preset: event.target.value })}
             className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
           >
             <option value="">Any training-permitted preset</option>
@@ -79,7 +112,12 @@ export function DatasetBuilderForm({
           </select>
         </div>
         <div className="flex items-end gap-2">
-          <Checkbox id="kyc" name="kyc" defaultChecked={defaults.kyc} />
+          <Checkbox
+            id="kyc"
+            name="kyc"
+            checked={filters.kyc}
+            onCheckedChange={(checked) => setFilters({ ...filters, kyc: checked === true })}
+          />
           <Label htmlFor="kyc">KYC-verified creators only</Label>
         </div>
         <div className="sm:col-span-2">
@@ -87,22 +125,26 @@ export function DatasetBuilderForm({
             Update preview
           </Button>
           <span className="ml-3 font-mono text-xs text-muted-foreground">
-            {matchCount} training-licensed asset{matchCount === 1 ? "" : "s"} match
+            {dirty
+              ? "filters changed — update the preview to see the count"
+              : `${matchCount} training-licensed asset${matchCount === 1 ? "" : "s"} match`}
           </span>
         </div>
       </form>
 
       <form action={formAction} className="space-y-3 border-t pt-4">
-        <input type="hidden" name="modality" value={defaults.modality ?? ""} />
-        <input type="hidden" name="preset" value={defaults.preset ?? ""} />
-        <input type="hidden" name="q" value={defaults.q ?? ""} />
-        {defaults.kyc && <input type="hidden" name="kyc" value="on" />}
+        {/* Mirrors the previewed filters, which is exactly what the count above
+            describes — never the unpreviewed edits still in the controls. */}
+        <input type="hidden" name="modality" value={previewed.modality} />
+        <input type="hidden" name="preset" value={previewed.preset} />
+        <input type="hidden" name="q" value={previewed.q} />
+        {previewed.kyc && <input type="hidden" name="kyc" value="on" />}
         <div className="space-y-1.5">
           <Label htmlFor="name">Dataset name</Label>
           <Input id="name" name="name" placeholder="ambient-audio-v1" required />
         </div>
         {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-        <Button type="submit" disabled={pending || matchCount === 0}>
+        <Button type="submit" disabled={pending || dirty || matchCount === 0}>
           {pending ? "Saving…" : "Save dataset"}
         </Button>
       </form>
