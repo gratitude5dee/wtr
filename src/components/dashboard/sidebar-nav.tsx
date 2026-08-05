@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Boxes,
   Coins,
   FolderOpen,
   Inbox,
@@ -34,6 +35,7 @@ const SECTIONS = [
     items: [
       { href: "/catalog", label: "Catalog", icon: LibraryBig, count: "catalog" as const },
       { href: "/requests", label: "Requests", icon: Inbox, count: "requests" as const },
+      { href: "/datasets", label: "Datasets", icon: Boxes },
     ],
   },
   {
