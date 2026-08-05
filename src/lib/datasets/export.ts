@@ -260,8 +260,16 @@ export async function exportSnapshot(
   if (!dataset) throw new DatasetError("that dataset no longer exists");
 
   const members = await snapshotMembers(snapshot, q);
+  // Pairs are drawn from the re-validated members, not the frozen id list: an
+  // asset whose terms flipped to WTR-NO-TRAIN after the snapshot must take its
+  // preference pairs out of the export with it.
   const preferencePairs =
-    template === "dpo_pairs" ? await preferencePairsForAssets(snapshot.assetIds, q) : [];
+    template === "dpo_pairs"
+      ? await preferencePairsForAssets(
+          members.map((member) => member.assetId),
+          q,
+        )
+      : [];
   const traceDocuments = await loadTraceDocuments(
     members.map((member) => member.assetId),
     q,

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -20,7 +19,9 @@ export default async function DatasetPage({
   const { id } = await params;
   const creator = await getCurrentCreator();
   const dataset = await getDataset(id);
-  if (!dataset || (creator && dataset.ownerCreatorId !== creator.id)) notFound();
+  // A dataset is only ever visible to its owner — including when no identity
+  // resolves at all, which must not read as "no owner to compare against".
+  if (!creator || !dataset || dataset.ownerCreatorId !== creator.id) notFound();
 
   const [preview, snapshots] = await Promise.all([
     previewDataset(dataset.filters),
@@ -73,22 +74,24 @@ export default async function DatasetPage({
                 <div className="flex flex-wrap gap-3 text-xs">
                   {EXPORT_TEMPLATES.map((template) => (
                     <span key={template} className="flex items-center gap-1.5">
-                      <Link
+                      {/* Plain anchors: these are file downloads, and `next/link`
+                          would apply the basePath `withBasePath` already added. */}
+                      <a
                         className="underline"
                         href={withBasePath(
                           `/api/datasets/snapshots/${snapshot.id}/export?template=${template}`,
                         )}
                       >
                         {EXPORT_TEMPLATE_LABEL[template]}
-                      </Link>
-                      <Link
+                      </a>
+                      <a
                         className="text-muted-foreground underline"
                         href={withBasePath(
                           `/api/datasets/snapshots/${snapshot.id}/export?template=${template}&part=card`,
                         )}
                       >
                         card
-                      </Link>
+                      </a>
                     </span>
                   ))}
                 </div>

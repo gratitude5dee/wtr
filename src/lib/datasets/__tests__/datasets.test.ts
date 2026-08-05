@@ -297,6 +297,27 @@ describe("exportSnapshot", () => {
     );
   });
 
+  it("drops preference pairs for an asset whose terms became NO-TRAIN", async () => {
+    const q = fakeQueryable([
+      [
+        {
+          id: snapshot.id,
+          dataset_id: "d1",
+          filters: {},
+          asset_ids: ["a1"],
+          item_count: 1,
+          created_at: new Date("2026-08-02T00:00:00Z"),
+        },
+      ],
+      [{ id: "d1", owner_creator_id: "c1", name: "d", filters: {}, created_at: new Date(), snapshot_count: 1 }],
+      // snapshotMembers re-applies the guard and drops the asset.
+      [],
+    ]);
+    const result = await exportSnapshot(snapshot.id, "dpo_pairs", q);
+    expect(result.lineCount).toBe(0);
+    expect(q.calls.some((c) => c.sql.includes("preference_pair"))).toBe(false);
+  });
+
   it("reports a missing snapshot", async () => {
     await expect(exportSnapshot("s1", "sft_jsonl", fakeQueryable([[]]))).rejects.toThrow(
       /no longer exists/,
