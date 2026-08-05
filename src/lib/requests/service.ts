@@ -14,6 +14,14 @@ import { LICENSE_PRESETS } from "../story/license-presets";
 /** Bad input, safe to echo to the caller. */
 export class RequestError extends Error {}
 
+/** How much of the budget the lab put up front when posting the brief. */
+export type FundingMode = "none" | "deposit" | "full";
+
+export const FUNDING_MODES = ["none", "deposit", "full"] as const;
+
+/** A requested data object: field name → type, as posted by the lab. */
+export type DataShape = Record<string, string>;
+
 export interface RequestDetail {
   id: string;
   title: string;
@@ -23,6 +31,11 @@ export interface RequestDetail {
   unitPriceWei: bigint | null;
   kycRequired: boolean;
   deadline: Date | null;
+  fundingMode: FundingMode;
+  depositWei: bigint | null;
+  amountPaidWei: bigint;
+  dataShape: DataShape | null;
+  specialInstructions: string | null;
   status: string;
   createdAt: Date;
   /** The account that posted the brief and reviews its submissions. */
@@ -40,6 +53,11 @@ export async function getRequest(requestId: string, q: Queryable = db): Promise<
     unit_price_wei: string | null;
     kyc_required: boolean;
     deadline: Date | null;
+    funding_mode: FundingMode;
+    deposit_wei: string | null;
+    amount_paid_wei: string;
+    data_shape: DataShape | null;
+    special_instructions: string | null;
     status: string;
     created_at: Date;
     requester_creator_id: string | null;
@@ -47,6 +65,9 @@ export async function getRequest(requestId: string, q: Queryable = db): Promise<
   }>(
     `SELECT id, title, spec, license_preset, budget_wei::text AS budget_wei,
             unit_price_wei::text AS unit_price_wei, kyc_required, deadline,
+            funding_mode, deposit_wei::text AS deposit_wei,
+            amount_paid_wei::text AS amount_paid_wei, data_shape,
+            special_instructions,
             status, created_at, requester_creator_id, requester_anon_id
      FROM data_request WHERE id = $1`,
     [requestId],
@@ -62,6 +83,11 @@ export async function getRequest(requestId: string, q: Queryable = db): Promise<
     unitPriceWei: row.unit_price_wei === null ? null : weiFromDb(row.unit_price_wei),
     kycRequired: row.kyc_required,
     deadline: row.deadline,
+    fundingMode: row.funding_mode,
+    depositWei: row.deposit_wei === null ? null : weiFromDb(row.deposit_wei),
+    amountPaidWei: weiFromDb(row.amount_paid_wei),
+    dataShape: row.data_shape,
+    specialInstructions: row.special_instructions,
     status: row.status,
     createdAt: row.created_at,
     requesterCreatorId: row.requester_creator_id,
@@ -78,6 +104,11 @@ export interface NewRequest {
   unitPriceWei: bigint | null;
   kycRequired: boolean;
   deadline: Date | null;
+  fundingMode: FundingMode;
+  depositWei: bigint | null;
+  amountPaidWei: bigint;
+  dataShape: DataShape | null;
+  specialInstructions: string | null;
 }
 
 const MODALITIES = ["any", "audio", "image", "video", "3d", "motion"] as const;
@@ -102,6 +133,29 @@ export async function createRequest(
   if (input.unitPriceWei !== null && input.unitPriceWei <= 0n) {
     throw new RequestError("per-item price must be positive when set");
   }
+  if (!(FUNDING_MODES as readonly string[]).includes(input.fundingMode)) {
+    throw new RequestError("choose how the request is funded");
+  }
+  // Funding rules: a deposit must cover at least a tenth of the budget, and a
+  // fully-paid brief must match the budget exactly — anything else would show
+  // creators a funding badge the money doesn't back.
+  if (input.fundingMode === "deposit") {
+    if (input.depositWei === null || input.depositWei < input.budgetWei / 10n) {
+      throw new RequestError("a deposit must be at least 10% of the budget");
+    }
+    if (input.depositWei > input.budgetWei) {
+      throw new RequestError("a deposit cannot exceed the budget");
+    }
+    if (input.amountPaidWei !== input.depositWei) {
+      throw new RequestError("the paid amount must equal the deposit");
+    }
+  }
+  if (input.fundingMode === "full" && input.amountPaidWei !== input.budgetWei) {
+    throw new RequestError("paying in full means paying exactly the budget");
+  }
+  if (input.fundingMode === "none" && input.amountPaidWei !== 0n) {
+    throw new RequestError("an unfunded request cannot carry a paid amount");
+  }
   if (input.deadline !== null) {
     if (Number.isNaN(input.deadline.getTime())) {
       throw new RequestError("enter a valid deadline");
@@ -110,11 +164,21 @@ export async function createRequest(
       throw new RequestError("the deadline must be in the future");
     }
   }
+  // Posting is gated on the verified-lab flag: briefs are a buyer surface.
+  const poster = await q.query<{ lab_verified: boolean }>(
+    "SELECT lab_verified FROM creator WHERE id = $1",
+    [requester.id],
+  );
+  if (!poster.rows[0]?.lab_verified) {
+    throw new RequestError("only verified labs can post data requests");
+  }
+
   const rows = await q.query<{ id: string }>(
     `INSERT INTO data_request
        (requester_anon_id, requester_creator_id, title, spec, license_preset,
-        budget_wei, unit_price_wei, kyc_required, deadline)
-     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)
+        budget_wei, unit_price_wei, kyc_required, deadline,
+        funding_mode, deposit_wei, amount_paid_wei, data_shape, special_instructions)
+     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
      RETURNING id`,
     [
       requester.anonId,
@@ -126,6 +190,11 @@ export async function createRequest(
       input.unitPriceWei === null ? null : input.unitPriceWei.toString(),
       input.kycRequired,
       input.deadline,
+      input.fundingMode,
+      input.depositWei === null ? null : input.depositWei.toString(),
+      input.amountPaidWei.toString(),
+      input.dataShape === null ? null : JSON.stringify(input.dataShape),
+      input.specialInstructions?.trim().slice(0, 2000) || null,
     ],
   );
   return rows.rows[0].id;

@@ -34,7 +34,12 @@ interface DemoAsset {
   daysAgo: number;
   labels: Array<[string, string]>;
   listing?: { preset: string; priceIp: string; status: string };
-  sales?: Array<{ amountIp: string; daysAgo: number; payoutStatus: string }>;
+  sales?: Array<{
+    amountIp: string;
+    daysAgo: number;
+    payoutStatus: string;
+    payoutRail?: "onchain" | "fiat";
+  }>;
   events: Array<[string, number]>;
 }
 
@@ -143,7 +148,9 @@ const ASSETS: DemoAsset[] = [
       ["duration", "14m 20s"],
     ],
     listing: { preset: "WTR-TRAIN-EXCLUSIVE", priceIp: "640", status: "sold" },
-    sales: [{ amountIp: "640", daysAgo: 20, payoutStatus: "credited" }],
+    sales: [
+      { amountIp: "640", daysAgo: 20, payoutStatus: "credited", payoutRail: "onchain" },
+    ],
     events: [
       ["asset.ingested", 60],
       ["asset.labeled", 58],
@@ -166,14 +173,18 @@ const ASSETS: DemoAsset[] = [
     ],
     listing: { preset: "WTR-TRAIN-NONEXCLUSIVE", priceIp: "95", status: "sold" },
     sales: [
-      { amountIp: "95", daysAgo: 65, payoutStatus: "paid" },
-      { amountIp: "95", daysAgo: 40, payoutStatus: "credited" },
+      { amountIp: "95", daysAgo: 65, payoutStatus: "paid", payoutRail: "onchain" },
+      { amountIp: "95", daysAgo: 55, payoutStatus: "paid", payoutRail: "fiat" },
+      { amountIp: "95", daysAgo: 48, payoutStatus: "failed", payoutRail: "fiat" },
+      { amountIp: "95", daysAgo: 40, payoutStatus: "pending", payoutRail: "onchain" },
     ],
     events: [
       ["asset.ingested", 90],
       ["asset.labeled", 88],
       ["asset.listed", 85],
       ["asset.sold", 65],
+      ["asset.sold", 55],
+      ["asset.sold", 48],
       ["asset.sold", 40],
       ["asset.settled", 39],
     ],
@@ -193,9 +204,10 @@ function daysAgo(days: number): Date {
 
 async function main() {
   const creatorResult = await db.query<{ id: string }>(
-    `INSERT INTO creator (anon_id, display_name, avatar_seed, kyc_status, tax_status, payout_pref)
-     VALUES ($1, 'Demo Creator', 'wtr-demo-seed', 'verified', 'submitted', 'onchain')
-     ON CONFLICT (anon_id) DO UPDATE SET display_name = EXCLUDED.display_name
+    `INSERT INTO creator (anon_id, display_name, avatar_seed, kyc_status, tax_status, payout_pref, lab_verified)
+     VALUES ($1, 'Demo Creator', 'wtr-demo-seed', 'verified', 'submitted', 'onchain', TRUE)
+     ON CONFLICT (anon_id) DO UPDATE
+       SET display_name = EXCLUDED.display_name, lab_verified = TRUE
      RETURNING id`,
     [DEMO_ANON_ID],
   );
@@ -254,9 +266,12 @@ async function main() {
         `INSERT INTO asset_event (asset_id, seq, event_type, payload, idempotency_key, created_at)
          SELECT $1, $2, $3, '{"demo_seed": true}', $4, $5
          WHERE NOT EXISTS (
-           SELECT 1 FROM asset_event WHERE asset_id = $1 AND idempotency_key = $4
+           SELECT 1 FROM asset_event
+           WHERE asset_id = $1 AND (idempotency_key = $4 OR seq = $2)
          )`,
-        [assetId, seq, eventType, `demo:${sha}:${seq}`, daysAgo(eventDaysAgo)],
+        // Keyed on the event itself, not its position, so editing the list
+        // stays idempotent against an already-seeded database.
+        [assetId, seq, eventType, `demo:${sha}:${eventType}:${eventDaysAgo}`, daysAgo(eventDaysAgo)],
       );
     }
 
@@ -300,14 +315,17 @@ async function main() {
       const saleId = saleResult.rows[0]?.id;
       if (!saleId) continue;
       await db.query(
-        `INSERT INTO payout (sale_id, creator_id, amount_wei, currency_address, status, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO payout (sale_id, creator_id, amount_wei, currency_address, status, rail, external_ref, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           saleId,
           creatorId,
           toWei(sale.amountIp).toString(),
           ZERO_ADDRESS,
           sale.payoutStatus,
+          sale.payoutRail ?? "onchain",
+          // Bank rail settles off-chain: a reference, never a fabricated tx hash.
+          sale.payoutRail === "fiat" ? `demo-transfer-${sale.daysAgo}` : null,
           daysAgo(sale.daysAgo),
         ],
       );

@@ -1,7 +1,10 @@
+import { Suspense } from "react";
+
 import { DitherAvatar } from "@/components/dither-kit/avatar";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { TestnetBanner } from "@/components/dashboard/testnet-banner";
 import { WalletConnect } from "@/components/dashboard/wallet-connect";
+import { Walkthrough } from "@/components/dashboard/walkthrough";
 import { Badge } from "@/components/ui/badge";
 import { walletAuthEnabled } from "@/lib/auth/session";
 import { getCurrentCreator, getNavCounts } from "@/lib/dashboard/queries";
@@ -69,6 +72,9 @@ export default async function DashboardLayout({
         <TestnetBanner />
         <main className="flex-1 p-8">{children}</main>
       </div>
+      <Suspense fallback={null}>
+        <Walkthrough />
+      </Suspense>
     </div>
   );
 }

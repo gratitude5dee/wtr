@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BulkActions } from "@/components/dashboard/bulk-actions";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DitherThumb } from "@/components/dither-kit/thumb";
 import { thumbStyleFor } from "@/components/dither-kit/thumb-style";
@@ -78,10 +79,25 @@ export default async function AssetsPage({
         title="Assets"
         description="Everything you’ve added, from tray to settlement."
         actions={
-          <Button asChild size="sm">
-            <Link href="/upload">Upload</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="secondary">
+              <Link href="/upload/bulk">Bulk upload</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/upload">Upload</Link>
+            </Button>
+          </div>
         }
+      />
+
+      <BulkActions
+        assets={allAssets
+          .filter((asset) => asset.stage === "IN_TRAY" || asset.stage === "LABELED")
+          .map((asset) => ({
+            id: asset.id,
+            filename: asset.filename,
+            stage: asset.stage,
+          }))}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -127,7 +143,7 @@ export default async function AssetsPage({
           )}
         </p>
       ) : (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="overflow-hidden rounded-xl border" data-tour="assets-list">
           {assets.map((asset) => {
             const thumb = thumbStyleFor(asset.modality);
             const failed = asset.stage === "FAILED_REGISTER";

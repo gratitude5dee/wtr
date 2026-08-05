@@ -13,7 +13,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatIp, PRESET_NAME, PRESET_SENTENCE } from "@/lib/dashboard/format";
+import {
+  formatIp,
+  fundingLabel,
+  PRESET_NAME,
+  PRESET_SENTENCE,
+} from "@/lib/dashboard/format";
 import { getCurrentCreator } from "@/lib/dashboard/queries";
 import { eligibleAssets, getRequest, listSubmissionsForReview } from "@/lib/requests/service";
 
@@ -86,6 +91,42 @@ export default async function RequestDetailPage({
             )}
             {request.kycRequired && " \u00b7 KYC-verified creators only"}
           </p>
+          <p>
+            Funding:{" "}
+            <Badge
+              variant={request.fundingMode === "none" ? "outline" : "secondary"}
+            >
+              {fundingLabel(request.fundingMode, request.budgetWei, request.amountPaidWei)}
+            </Badge>
+            {request.amountPaidWei > 0n && (
+              <>
+                {" \u00b7 "}
+                <span className="font-mono text-xs">{formatIp(request.amountPaidWei)}</span>{" "}
+                already paid
+              </>
+            )}
+          </p>
+          {request.dataShape && Object.keys(request.dataShape).length > 0 && (
+            <div className="space-y-1">
+              <div className="font-medium">Data shape</div>
+              <dl className="space-y-1 font-mono text-xs">
+                {Object.entries(request.dataShape).map(([field, type]) => (
+                  <div key={field} className="flex items-baseline gap-2">
+                    <dt>{field}</dt>
+                    <dd className="text-muted-foreground">{type}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+          {request.specialInstructions && (
+            <div className="space-y-1">
+              <div className="font-medium">Special instructions</div>
+              <p className="whitespace-pre-wrap text-muted-foreground">
+                {request.specialInstructions}
+              </p>
+            </div>
+          )}
           {specEntries.length > 0 && (
             <dl className="space-y-1">
               {specEntries.map(([key, value]) => (
