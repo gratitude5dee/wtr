@@ -24,10 +24,11 @@
  * they can never reach a juror.
  */
 import { JURY_API_KEY, JURY_API_URL, JURY_MODELS } from "../../../config/env";
+import { sha256Canonical, stripHexPrefix } from "../crypto/canonical";
 import { db, type Queryable } from "../db/pool";
 import { log } from "../log";
 
-import { enqueueJob, getJobType, registerJobType, type JobContext } from "./registry";
+import { getJobType, registerJobType, type JobContext } from "./registry";
 
 export const PREFERENCE_JOB_TYPE = "text_pairwise_preference";
 
@@ -347,13 +348,50 @@ async function runPreferenceJob(context: JobContext): Promise<void> {
   await persistPreferencePair(context.jobId, context.assetId, spec, result, context.q);
 }
 
-/** Queues a pairwise-preference job for one asset. */
-export function enqueuePreferenceJob(
+/** Identity of a pair: the same prompt and candidates, in either order. */
+export async function preferenceFingerprint(spec: PreferenceSpec): Promise<string> {
+  const candidates = [spec.a, spec.b].sort();
+  return stripHexPrefix(await sha256Canonical({ prompt: spec.prompt, candidates }));
+}
+
+/**
+ * Queues a pairwise-preference job for one asset.
+ *
+ * Deliberately not `enqueueJob`: the registry dedupes per (asset, job_type)
+ * because for tier 1 and tier 2 the spec describes the asset, whereas here the
+ * spec *is* the unit of work — one asset can carry many distinct pairs, and
+ * dropping the second one would silently lose it. Idempotency is therefore per
+ * pair, keyed on a fingerprint recorded in the spec.
+ */
+export async function enqueuePreferenceJob(
   assetId: string,
   spec: { prompt: string; a: string; b: string; sourceFamily?: string; traceAssetId?: string },
   q: Queryable = db,
 ): Promise<"queued" | "awaiting_model"> {
-  return enqueueJob(assetId, PREFERENCE_JOB_TYPE, validatePreferenceSpec(spec), q);
+  const parsed = validatePreferenceSpec(spec);
+  const fingerprint = await preferenceFingerprint(parsed);
+  const state = juryConfigured() ? "queued" : "awaiting_model";
+  const existing = await q.query<{ id: string }>(
+    `SELECT id FROM label_job
+     WHERE asset_id = $1 AND job_type = $2
+       AND state IN ('awaiting_model', 'queued', 'running')
+       AND spec->>'fingerprint' = $3`,
+    [assetId, PREFERENCE_JOB_TYPE, fingerprint],
+  );
+  if (existing.rows.length === 0) {
+    await q.query(
+      `INSERT INTO label_job (asset_id, tier, job_type, state, spec)
+       VALUES ($1, 2, $2, $3, $4::jsonb)`,
+      [assetId, PREFERENCE_JOB_TYPE, state, JSON.stringify({ ...parsed, fingerprint })],
+    );
+  } else if (state === "queued") {
+    // A jury has been configured since the job was parked.
+    await q.query(
+      "UPDATE label_job SET state = 'queued', updated_at = now() WHERE id = $1 AND state = 'awaiting_model'",
+      [existing.rows[0].id],
+    );
+  }
+  return state;
 }
 
 /** Idempotent: safe to call from any entrypoint that needs the job type. */

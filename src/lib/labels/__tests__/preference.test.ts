@@ -10,6 +10,7 @@ import {
   juryConfigured,
   MAX_CANDIDATE_CHARS,
   parseVerdict,
+  preferenceFingerprint,
   persistPreferencePair,
   PREFERENCE_JOB_TYPE,
   runJury,
@@ -135,8 +136,8 @@ describe("configuration", () => {
       enqueuePreferenceJob("asset-1", { prompt: SPEC.prompt, a: SPEC.a, b: SPEC.b }, q),
     ).resolves.toBe("awaiting_model");
     const insert = calls.find((call) => call.sql.includes("INSERT INTO label_job"));
-    expect(insert?.params[2]).toBe(PREFERENCE_JOB_TYPE);
-    expect(insert?.params[3]).toBe("awaiting_model");
+    expect(insert?.params[1]).toBe(PREFERENCE_JOB_TYPE);
+    expect(insert?.params[2]).toBe("awaiting_model");
   });
 
   it("refuses to run a jury when no model is configured", async () => {
@@ -144,6 +145,44 @@ describe("configuration", () => {
     vi.stubEnv("WTR_JURY_API_KEY", "");
     vi.stubEnv("WTR_JURY_MODELS", "");
     await expect(runJury(SPEC, { sleep: noSleep })).rejects.toThrow(/no preference jury/);
+  });
+});
+
+describe("enqueuePreferenceJob", () => {
+  it("queues each distinct pair for an asset, keyed on a pair fingerprint", async () => {
+    configure();
+    const { q, calls } = fakeDb();
+    await expect(
+      enqueuePreferenceJob("asset-1", { prompt: SPEC.prompt, a: SPEC.a, b: SPEC.b }, q),
+    ).resolves.toBe("queued");
+    const select = calls[0];
+    const insert = calls[1];
+    expect(select.sql).toContain("spec->>'fingerprint'");
+    expect(select.params[2]).toBe(await preferenceFingerprint(SPEC));
+    expect(insert.sql).toContain("INSERT INTO label_job");
+    expect(JSON.parse(String(insert.params[3]))).toMatchObject({
+      prompt: SPEC.prompt,
+      a: SPEC.a,
+      b: SPEC.b,
+      fingerprint: select.params[2],
+    });
+  });
+
+  it("does not re-queue the same pair, whichever order its candidates arrive in", async () => {
+    configure();
+    const { q, calls } = fakeDb({ "SELECT id FROM label_job": [{ id: "job-1" }] });
+    await enqueuePreferenceJob("asset-1", { prompt: SPEC.prompt, a: SPEC.b, b: SPEC.a }, q);
+    expect(calls[0].params[2]).toBe(await preferenceFingerprint(SPEC));
+    expect(calls.some((call) => call.sql.includes("INSERT INTO label_job"))).toBe(false);
+    expect(calls[1].sql).toContain("state = 'queued'");
+    expect(calls[1].params).toEqual(["job-1"]);
+  });
+
+  it("gives two different pairs on one asset two different fingerprints", async () => {
+    const first = await preferenceFingerprint(SPEC);
+    const second = await preferenceFingerprint({ ...SPEC, b: "a third answer" });
+    const otherPrompt = await preferenceFingerprint({ ...SPEC, prompt: "another prompt" });
+    expect(new Set([first, second, otherPrompt]).size).toBe(3);
   });
 });
 
