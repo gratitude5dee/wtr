@@ -13,6 +13,12 @@
 import { createHash } from "node:crypto";
 
 import { ZERO_ADDRESS } from "../config/chain";
+import {
+  CURRENT_PRIVACY,
+  CURRENT_SCOPES,
+  CURRENT_TOS,
+  documentSha256,
+} from "../src/lib/consent/documents";
 import { closePool, db } from "../src/lib/db/pool";
 import { log } from "../src/lib/log";
 import { toWei } from "../src/lib/money";
@@ -195,13 +201,30 @@ async function main() {
   );
   const creatorId = creatorResult.rows[0].id;
 
+  // The real current documents (version + hash), so `hasCurrentConsent` holds
+  // for the demo creator and the preview isn't stuck on the stale-terms screen.
+  const tosSha = await documentSha256(CURRENT_TOS);
   await db.query(
     `INSERT INTO consent_acceptance (creator_id, document_version, document_sha256, scopes, privacy_version, accepted_at)
-     SELECT $1, 'wtr-consent-v1', $2, '{"upload": true, "listing": true}', 'wtr-privacy-v1', now() - interval '90 days'
+     SELECT $1, $2, $3, $4, $5, $6
      WHERE NOT EXISTS (
-       SELECT 1 FROM consent_acceptance WHERE creator_id = $1 AND document_version = 'wtr-consent-v1'
+       SELECT 1 FROM consent_acceptance WHERE creator_id = $1 AND document_version = $2
      )`,
-    [creatorId, demoSha("consent-v1")],
+    [
+      creatorId,
+      CURRENT_TOS.version,
+      tosSha,
+      JSON.stringify(CURRENT_SCOPES),
+      CURRENT_PRIVACY.version,
+      daysAgo(0),
+    ],
+  );
+  // Same semantics as acceptCurrentConsent: older acceptances get revoked_at
+  // stamped so only the current-version row is active.
+  await db.query(
+    `UPDATE consent_acceptance SET revoked_at = now()
+     WHERE creator_id = $1 AND revoked_at IS NULL AND document_version <> $2`,
+    [creatorId, CURRENT_TOS.version],
   );
 
   for (const spec of ASSETS) {

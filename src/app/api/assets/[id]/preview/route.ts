@@ -1,6 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server";
 
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import { enqueueTier2, runTier2Job } from "@/lib/labels/tier2";
 import { log } from "@/lib/log";
 import { PreviewError, readPreview, storePreview } from "@/lib/upload/preview-store";
@@ -21,7 +21,7 @@ export async function GET(_request: NextRequest, context: Context): Promise<Resp
 
 export async function PUT(request: NextRequest, context: Context): Promise<NextResponse> {
   const { id } = await context.params;
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return NextResponse.json({ error: "no creator account" }, { status: 401 });
   try {
     const bytes = new Uint8Array(await request.arrayBuffer());

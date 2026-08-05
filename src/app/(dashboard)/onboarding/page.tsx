@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { sessionsEnabled } from "@/lib/auth/session";
 import { CURRENT_PRIVACY, CURRENT_TOS } from "@/lib/consent/documents";
 import { hasCurrentConsent } from "@/lib/consent/service";
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 
 import { acceptLatestConsentAction, onboardAction } from "./actions";
 
@@ -27,7 +27,7 @@ export default async function OnboardingPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (creator && (await hasCurrentConsent(creator.id))) redirect("/upload");
 
   return (
