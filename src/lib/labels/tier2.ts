@@ -121,19 +121,20 @@ export async function enqueueTier2(assetId: string): Promise<"queued" | "awaitin
   const state = tier2Configured() ? "queued" : "awaiting_model";
   const existing = await db.query<{ id: string }>(
     `SELECT id FROM label_job
-     WHERE asset_id = $1 AND tier = 2 AND state IN ('awaiting_model', 'queued', 'running')`,
+     WHERE asset_id = $1 AND job_type = 'tier2_vision'
+       AND state IN ('awaiting_model', 'queued', 'running')`,
     [assetId],
   );
   if (existing.rows.length === 0) {
-    await db.query("INSERT INTO label_job (asset_id, tier, state) VALUES ($1, 2, $2)", [
-      assetId,
-      state,
-    ]);
+    await db.query(
+      "INSERT INTO label_job (asset_id, tier, job_type, state) VALUES ($1, 2, 'tier2_vision', $2)",
+      [assetId, state],
+    );
   } else if (state === "queued") {
     // A model has been configured since the job was parked.
     await db.query(
       `UPDATE label_job SET state = 'queued', updated_at = now()
-       WHERE asset_id = $1 AND tier = 2 AND state = 'awaiting_model'`,
+       WHERE asset_id = $1 AND job_type = 'tier2_vision' AND state = 'awaiting_model'`,
       [assetId],
     );
   }
@@ -147,7 +148,7 @@ export async function enqueueTier2(assetId: string): Promise<"queued" | "awaitin
 export async function runTier2Job(assetId: string, fetchImpl: typeof fetch = fetch): Promise<void> {
   const claimed = await db.query<{ id: string }>(
     `UPDATE label_job SET state = 'running', model_id = $2, updated_at = now()
-     WHERE asset_id = $1 AND tier = 2 AND state = 'queued'
+     WHERE asset_id = $1 AND job_type = 'tier2_vision' AND state = 'queued'
      RETURNING id`,
     [assetId, TIER2_MODEL()],
   );
