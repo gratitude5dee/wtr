@@ -14,7 +14,7 @@ import {
   acceptCurrentConsent,
   createCreatorWithConsent,
 } from "@/lib/consent/service";
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 
 const WALLET_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
@@ -41,7 +41,7 @@ export async function onboardAction(formData: FormData): Promise<void> {
     walletAddress = formWallet || undefined;
   }
 
-  const existing = await getCurrentCreator();
+  const existing = await getActingCreator();
   if (existing) {
     await acceptCurrentConsent(existing.id);
   } else {
@@ -65,7 +65,7 @@ export async function onboardAction(formData: FormData): Promise<void> {
 }
 
 export async function acceptLatestConsentAction(): Promise<void> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (creator) await acceptCurrentConsent(creator.id);
   redirect("/upload");
 }

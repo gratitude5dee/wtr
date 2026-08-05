@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import {
   applyTier1Labels,
   MeasuredLabelError,
@@ -21,7 +21,7 @@ export async function POST(
   if (!ASSET_ID.test(id)) {
     return NextResponse.json({ error: "invalid asset id" }, { status: 400 });
   }
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) {
     return NextResponse.json({ error: "no creator account" }, { status: 401 });
   }

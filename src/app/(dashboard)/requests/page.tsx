@@ -14,6 +14,7 @@ const MODALITY_LABEL: Record<string, string> = {
   audio: "Audio",
   image: "Image",
   video: "Video",
+  "3d": "3D",
   threed: "3D",
   motion: "Motion",
 };
@@ -87,7 +88,7 @@ export default async function RequestsPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-1.5">
-                    {request.modality && (
+                    {request.modality && request.modality !== "any" && (
                       <Badge variant="outline" className="font-mono text-[10px] uppercase">
                         {MODALITY_LABEL[request.modality] ?? request.modality}
                       </Badge>
