@@ -18,6 +18,7 @@ import { TIER1_NAMESPACE } from "../labels/tier1";
 import type { LabelInput } from "../pipeline/store";
 
 import { MAX_MODEL_CHARS, MAX_TOOL_NAME_CHARS } from "./parse";
+import { MAX_TOOL_NAMES } from "./redact";
 import type { RedactedTrace, TraceStructure } from "./redact";
 
 /** Trace labels share the `wtr` namespace with tier-1/tier-2 labels. */
@@ -133,6 +134,11 @@ export function validateTraceStructure(payload: unknown): TraceStructure {
   }
   const rawNames = record.toolNames;
   if (!Array.isArray(rawNames)) throw new TraceLabelError("'toolNames' must be an array");
+  // The browser producer caps the set; enforce the same cap here so a crafted
+  // payload cannot park an unbounded array in `label_job.spec`.
+  if (rawNames.length > MAX_TOOL_NAMES) {
+    throw new TraceLabelError(`'toolNames' must hold at most ${MAX_TOOL_NAMES} names`);
+  }
   // The same limit the parser enforces, so a trace the browser could produce
   // is never rejected here.
   const toolNames = rawNames.map((name) => {

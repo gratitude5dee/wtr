@@ -121,6 +121,11 @@ describe("validateTraceStructure", () => {
     expect(() => validateTraceStructure({ ...STRUCTURE, format: "" })).toThrow(/format/);
   });
 
+  it("rejects an unbounded tool-name list", () => {
+    const toolNames = Array.from({ length: 65 }, (_, index) => `tool_${index}`);
+    expect(() => validateTraceStructure({ ...STRUCTURE, toolNames })).toThrow(/at most 64/);
+  });
+
   it("accepts anything the parser itself can produce, and clamps the model id", () => {
     const longName = "t".repeat(128);
     const clean = validateTraceStructure({

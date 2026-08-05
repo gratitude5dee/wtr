@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db/pool";
 import { getActingCreator } from "@/lib/dashboard/queries";
-import { enqueueJob } from "@/lib/labels/registry";
+import { enqueueJob, runJob } from "@/lib/labels/registry";
 import "@/lib/labels/job-types";
 import { log } from "@/lib/log";
 import { TraceLabelError, validateTraceStructure } from "@/lib/traces/labels";
@@ -62,6 +62,11 @@ export async function POST(
     const preview = validateRedactedTrace(section("preview"));
     const structuralState = await enqueueJob(id, TRACE_STRUCTURAL_JOB_TYPE, { structure });
     const judgeState = await enqueueJob(id, TRACE_JUDGE_JOB_TYPE, { preview });
+    // Same shape as the preview route: the labelers run after the response, so
+    // the upload never blocks on them and a labeler failure is not the
+    // creator's problem. A parked 'awaiting_model' job is left for later.
+    if (structuralState === "queued") after(() => runJob(id, TRACE_STRUCTURAL_JOB_TYPE));
+    if (judgeState === "queued") after(() => runJob(id, TRACE_JUDGE_JOB_TYPE));
     return NextResponse.json({ structural: structuralState, judge: judgeState });
   } catch (error) {
     if (error instanceof TraceLabelError || error instanceof RedactionError) {
