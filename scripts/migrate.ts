@@ -1,10 +1,10 @@
 /** `npm run db:migrate` — applies every pending SQL migration. */
 import { migrate } from "../src/lib/db/migrate";
-import { closePool, db } from "../src/lib/db/pool";
+import { closePool, withMigrationLock } from "../src/lib/db/pool";
 import { redactText } from "../src/lib/log";
 
 async function main(): Promise<void> {
-  const applied = await migrate(db);
+  const applied = await withMigrationLock((sql) => migrate(sql));
   if (applied.length === 0) {
     console.log("no pending migrations");
   } else {
