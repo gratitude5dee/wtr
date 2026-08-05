@@ -10,7 +10,7 @@ interface GridDistortionProps {
   mouse?: number;
   strength?: number;
   relaxation?: number;
-  imageSrc: string;
+  imageSrc?: string;
   className?: string;
 }
 
@@ -138,16 +138,42 @@ export default function GridDistortion({
       uniforms.resolution.value.set(width, height, 1, 1);
     };
 
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(imageSrc, (texture: THREE.Texture) => {
+    const configureTexture = (texture: THREE.Texture) => {
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
       texture.wrapS = THREE.ClampToEdgeWrapping;
       texture.wrapT = THREE.ClampToEdgeWrapping;
-      imageAspectRef.current = texture.image.width / texture.image.height;
       uniforms.uTexture.value = texture;
       handleResize();
-    });
+    };
+
+    if (imageSrc) {
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.load(imageSrc, (texture: THREE.Texture) => {
+        imageAspectRef.current = texture.image.width / texture.image.height;
+        configureTexture(texture);
+      });
+    } else {
+      const canvas = document.createElement("canvas");
+      canvas.width = 32;
+      canvas.height = 512;
+
+      const context = canvas.getContext("2d");
+      if (context) {
+        const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, "#0a0a0a");
+        gradient.addColorStop(0.35, "#0b3a53");
+        gradient.addColorStop(0.7, "#1f7a8c");
+        gradient.addColorStop(1, "#7fd4e6");
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      imageAspectRef.current = 1;
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      configureTexture(texture);
+    }
 
     if (window.ResizeObserver) {
       const resizeObserver = new ResizeObserver(handleResize);
@@ -223,6 +249,9 @@ export default function GridDistortion({
           }
         }
       }
+
+      mouseState.vX *= 0.9;
+      mouseState.vY *= 0.9;
 
       dataTexture.needsUpdate = true;
       renderer.render(scene, camera);
