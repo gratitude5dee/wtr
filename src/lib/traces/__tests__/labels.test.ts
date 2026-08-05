@@ -11,7 +11,7 @@ import {
   TraceLabelError,
   validateTraceStructure,
 } from "../labels";
-import { redactTrace, traceStructure } from "../redact";
+import { redactTrace, traceStructure, validateRedactedTrace } from "../redact";
 import { parseTrace } from "../parse";
 
 afterEach(() => {
@@ -203,6 +203,31 @@ describe("trace judge", () => {
     const body = sentBody;
     expect(body).not.toContain("deadbeef");
     expect(body).toContain("[redacted:hex]");
+  });
+
+  it("keeps a JWT smuggled into the preview out of the provider request", async () => {
+    configure();
+    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJTRU5USU5FTEpXVCJ9.SENTINELJWTSIGNATUREAAAABBBB";
+    const preview = validateRedactedTrace({
+      format: "hermes",
+      model: null,
+      messages: [{ role: "user", text: `token ${jwt}`, toolNames: [jwt] }],
+    });
+    let sentBody = "";
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      sentBody = String(init?.body ?? "");
+      return new Response(
+        JSON.stringify({
+          choices: [
+            { message: { content: JSON.stringify({ labels: [] }) } },
+          ],
+        }),
+        { status: 200 },
+      );
+    });
+    await judgeRedactedTrace(preview, fetchImpl as unknown as typeof fetch);
+    expect(sentBody).not.toContain("eyJ");
+    expect(sentBody).not.toContain("SENTINELJWT");
   });
 
   it("surfaces a provider error", async () => {

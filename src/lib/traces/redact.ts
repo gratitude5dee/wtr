@@ -65,6 +65,12 @@ const SCRUBBERS: { pattern: RegExp; marker: string }[] = [
   { pattern: /\b(?:https?|ftp|s3|file):\/\/\S+/gi, marker: "[redacted:url]" },
   { pattern: /-----BEGIN[\s\S]*?END[^-]*-----/g, marker: "[redacted:key]" },
   { pattern: /\b(?:0x)?[0-9a-fA-F]{32,}\b/g, marker: "[redacted:hex]" },
+  // A JWT is three short base64url segments, so no single span is long enough
+  // for the generic token rule below to fire.
+  {
+    pattern: /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}(?:\.[A-Za-z0-9_-]+)?/g,
+    marker: "[redacted:token]",
+  },
   { pattern: /\b[A-Za-z0-9_-]{40,}\b/g, marker: "[redacted:token]" },
   { pattern: /(?:\/[\w.-]+){2,}/g, marker: "[redacted:path]" },
   { pattern: /\b(?:\d[ -]?){13,19}\b/g, marker: "[redacted:number]" },
