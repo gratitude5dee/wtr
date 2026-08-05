@@ -92,6 +92,18 @@ export const TIER2_API_URL = () => optional("WTR_TIER2_API_URL", "https://api.op
 export const TIER2_API_KEY = () => process.env.WTR_TIER2_API_KEY ?? "";
 export const TIER2_MODEL = () => process.env.WTR_TIER2_MODEL ?? "";
 
+// DPO / pairwise-preference jury. One OpenAI-compatible endpoint, one juror
+// per model id in WTR_JURY_MODELS (comma separated). Falls back to the tier-2
+// provider so a single configured endpoint powers both. No models configured =
+// jury off: jobs are parked as awaiting_model rather than inventing a winner.
+export const JURY_API_URL = () => process.env.WTR_JURY_API_URL ?? TIER2_API_URL();
+export const JURY_API_KEY = () => process.env.WTR_JURY_API_KEY ?? TIER2_API_KEY();
+export const JURY_MODELS = (): string[] =>
+  (process.env.WTR_JURY_MODELS ?? "")
+    .split(",")
+    .map((model) => model.trim())
+    .filter((model) => model.length > 0);
+
 /** Model labels below this confidence are surfaced for creator confirmation. */
 export const LABEL_CONFIRM_THRESHOLD = (): number => {
   const raw = Number(process.env.WTR_LABEL_CONFIRM_THRESHOLD ?? "0.8");

@@ -105,8 +105,11 @@ export async function enqueueJob(
 }
 
 /**
- * Runs the queued job of one type for one asset. The row is claimed first, so
- * concurrent invocations cannot double-label; an unclaimable job is a no-op.
+ * Runs the oldest queued job of one type for one asset. Exactly one row is
+ * claimed — an asset may carry several queued jobs of a type whose spec is the
+ * unit of work (a preference pair), and claiming the rest would strand them in
+ * 'running'. Concurrent invocations cannot double-label; an unclaimable job is
+ * a no-op.
  */
 export async function runJob(
   assetId: string,
@@ -117,7 +120,13 @@ export async function runJob(
   const q = options.q ?? db;
   const claimed = await q.query<{ id: string; spec: unknown }>(
     `UPDATE label_job SET state = 'running', model_id = $3, updated_at = now()
-     WHERE asset_id = $1 AND job_type = $2 AND state = 'queued'
+     WHERE id = (
+       SELECT id FROM label_job
+       WHERE asset_id = $1 AND job_type = $2 AND state = 'queued'
+       ORDER BY created_at
+       FOR UPDATE SKIP LOCKED
+       LIMIT 1
+     )
      RETURNING id, spec`,
     [assetId, jobTypeName, jobType.modelId?.() ?? null],
   );

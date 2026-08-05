@@ -96,6 +96,8 @@ describe("runJob", () => {
     const run = register({ modelId: () => "m1" });
     const { q, calls } = fakeDb({ "UPDATE label_job SET state = 'running'": [{ id: "j1", spec: { k: 1 } }] });
     await runJob("a1", NAME, { q });
+    // Exactly one queued row is claimed; siblings must not be stranded.
+    expect(calls[0].sql).toContain("LIMIT 1");
     expect(run).toHaveBeenCalledWith(expect.objectContaining({ jobId: "j1", assetId: "a1", spec: { k: 1 } }));
     const finish = calls.at(-1);
     expect(finish?.params).toEqual(["j1", "done", null]);
