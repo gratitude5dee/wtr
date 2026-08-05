@@ -16,6 +16,7 @@ import {
   type ManifestEntry,
 } from "@/lib/upload/manifest";
 import { measureFile, submitMeasurements } from "@/lib/upload/measure";
+import { buildTraceSpec, submitTraceSpec } from "@/lib/traces/client";
 import { ACCEPT_ATTRIBUTE, modalityForFilename } from "@/lib/upload/modality";
 import { makeImagePreview, uploadPreview } from "@/lib/upload/preview";
 import type { HashResponse } from "@/lib/upload/hash-worker";
@@ -131,7 +132,13 @@ export function BulkUpload() {
           const assetId = payload.assetId;
           patch(id, { status: "encrypting", assetId, progressBytes: 0 });
           const modality = modalityForFilename(file.name);
-          if (modality) {
+          if (modality === "agenttrace") {
+            // Parsed and redacted on-device: only counts and a redacted
+            // excerpt are sent, never the trace itself.
+            void buildTraceSpec(file)
+              .then((spec) => submitTraceSpec(assetId, spec))
+              .catch(() => undefined);
+          } else if (modality) {
             void measureFile(file, modality).then((measured) =>
               measured ? submitMeasurements(assetId, measured) : undefined,
             );

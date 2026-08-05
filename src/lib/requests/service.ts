@@ -111,7 +111,7 @@ export interface NewRequest {
   specialInstructions: string | null;
 }
 
-const MODALITIES = ["any", "audio", "image", "video", "3d", "motion"] as const;
+const MODALITIES = ["any", "audio", "image", "video", "3d", "motion", "agenttrace"] as const;
 
 /** Posts a brief owned by the signed-in account (goal.md P0-7). */
 export async function createRequest(

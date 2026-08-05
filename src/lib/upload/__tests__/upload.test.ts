@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { modalityForFilename } from "../modality";
+import { ACCEPT_ATTRIBUTE, modalityForFilename } from "../modality";
 import { hashBlobSha256, Sha256Stream } from "../sha256-stream";
 
 async function subtleHex(bytes: Uint8Array): Promise<string> {
@@ -63,11 +63,22 @@ describe("modality mapping (goal.md P0-2)", () => {
     expect(modalityForFilename("model.usdz")).toBe("threed");
     expect(modalityForFilename("walk.lottie")).toBe("motion");
     expect(modalityForFilename("bounce.lottie.json")).toBe("motion");
+    expect(modalityForFilename("session.jsonl")).toBe("agenttrace");
+    expect(modalityForFilename("rollout.json")).toBe("agenttrace");
+  });
+
+  it("keeps .json unambiguous between lottie and agent traces", () => {
+    expect(modalityForFilename("Bounce.LOTTIE.JSON")).toBe("motion");
+    expect(modalityForFilename("hermes-trace.json")).toBe("agenttrace");
+    expect(modalityForFilename("trace.JSONL")).toBe("agenttrace");
   });
 
   it("rejects everything else", () => {
     expect(modalityForFilename("malware.exe")).toBeNull();
-    expect(modalityForFilename("data.json")).toBeNull();
     expect(modalityForFilename("noextension")).toBeNull();
+  });
+
+  it("offers both trace extensions in the file picker", () => {
+    expect(ACCEPT_ATTRIBUTE.split(",")).toEqual(expect.arrayContaining([".jsonl", ".json"]));
   });
 });

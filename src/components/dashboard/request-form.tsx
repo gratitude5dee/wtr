@@ -14,7 +14,7 @@ import {
   type NewRequestState,
 } from "@/app/(dashboard)/requests/new/actions";
 
-const MODALITIES = ["any", "audio", "image", "video", "3d", "motion"] as const;
+const MODALITIES = ["any", "audio", "image", "video", "3d", "motion", "agenttrace"] as const;
 const PRESETS = ["WTR-TRAIN-EXCLUSIVE", "WTR-TRAIN-NONEXCLUSIVE", "WTR-NO-TRAIN"] as const;
 const FIELD_TYPES = ["string", "number", "boolean", "file", "timestamp", "object"] as const;
 

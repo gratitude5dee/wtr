@@ -1,6 +1,6 @@
 /** Supported formats per modality (goal.md P0-2). Extension decides. */
 
-export type Modality = "audio" | "video" | "image" | "threed" | "motion";
+export type Modality = "audio" | "video" | "image" | "threed" | "motion" | "agenttrace";
 
 const EXTENSION_MODALITY: Record<string, Modality> = {
   wav: "audio",
@@ -28,11 +28,18 @@ const EXTENSION_MODALITY: Record<string, Modality> = {
   usdz: "threed",
   // Motion shares containers with video; a Lottie .json is unambiguous.
   lottie: "motion",
+  // Agent-trace exports (Hermes, OpenClaw, Codex, Claude Code). `.jsonl` is
+  // unambiguous; `.json` is resolved below because Lottie claims it too.
+  jsonl: "agenttrace",
 };
 
 export function modalityForFilename(filename: string): Modality | null {
   const extension = filename.split(".").pop()?.toLowerCase() ?? "";
-  if (extension === "json" && filename.toLowerCase().includes("lottie")) return "motion";
+  if (extension === "json") {
+    // A Lottie animation keeps the historical mapping; every other .json is
+    // read as an agent-trace export, which `parseTrace` then validates.
+    return filename.toLowerCase().includes("lottie") ? "motion" : "agenttrace";
+  }
   return EXTENSION_MODALITY[extension] ?? null;
 }
 

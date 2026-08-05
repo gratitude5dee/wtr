@@ -16,6 +16,8 @@ export function thumbStyleFor(modality: string): {
       return { color: "pink", variant: "texture" }
     case "threed":
       return { color: "grey", variant: "hatched" }
+    case "agenttrace":
+      return { color: "blue", variant: "texture" }
     default:
       return { color: "blue", variant: "hatched" }
   }

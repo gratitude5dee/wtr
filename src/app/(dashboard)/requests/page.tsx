@@ -17,6 +17,7 @@ const MODALITY_LABEL: Record<string, string> = {
   "3d": "3D",
   threed: "3D",
   motion: "Motion",
+  agenttrace: "Agent trace",
 };
 
 export default async function RequestsPage() {
