@@ -266,9 +266,9 @@ async function main() {
         `INSERT INTO asset_event (asset_id, seq, event_type, payload, idempotency_key, created_at)
          SELECT $1, $2, $3, '{"demo_seed": true}', $4, $5
          WHERE NOT EXISTS (
-           SELECT 1 FROM asset_event WHERE asset_id = $1 AND idempotency_key = $4
-         )
-         ON CONFLICT ON CONSTRAINT asset_event_seq_unique DO NOTHING`,
+           SELECT 1 FROM asset_event
+           WHERE asset_id = $1 AND (idempotency_key = $4 OR seq = $2)
+         )`,
         // Keyed on the event itself, not its position, so editing the list
         // stays idempotent against an already-seeded database.
         [assetId, seq, eventType, `demo:${sha}:${eventType}:${eventDaysAgo}`, daysAgo(eventDaysAgo)],
