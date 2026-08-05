@@ -23,7 +23,6 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <GridDistortion
-          imageSrc="https://picsum.photos/1920/1080?grayscale"
           grid={15}
           mouse={0.12}
           strength={0.15}
