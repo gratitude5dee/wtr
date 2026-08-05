@@ -5,6 +5,7 @@
  * while new labelers plug in the same way.
  */
 import { readPreview } from "../upload/preview-store";
+import { registerTraceJobTypes } from "../traces/job-types";
 
 import { registerJobType, getJobType, type JobContext } from "./registry";
 import { applyTier1Labels, validateMeasuredLabels } from "./tier1";
@@ -49,6 +50,8 @@ export function registerBuiltInJobTypes(): void {
       run: runTier2,
     });
   }
+  // Agent-trace labelers live with the trace code but belong to the same queue.
+  registerTraceJobTypes();
 }
 
 registerBuiltInJobTypes();

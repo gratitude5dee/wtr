@@ -12,6 +12,7 @@ import { withBasePath } from "@/lib/base-path";
 import { measureFile, submitMeasurements } from "@/lib/upload/measure";
 import { ACCEPT_ATTRIBUTE, modalityForFilename } from "@/lib/upload/modality";
 import { makeImagePreview, uploadPreview } from "@/lib/upload/preview";
+import { buildTraceSpec, submitTraceSpec } from "@/lib/traces/client";
 import type { HashResponse } from "@/lib/upload/hash-worker";
 
 type ItemStatus =
@@ -125,7 +126,13 @@ export function UploadQueue() {
           // Tier-1 measurement (duration/dimensions) happens on-device — only
           // the numbers leave the browser. Best-effort, never blocks upload.
           const modality = modalityForFilename(file.name);
-          if (modality) {
+          if (modality === "agenttrace") {
+            // The trace is parsed and redacted here: only counts and a
+            // redacted excerpt are sent, never the trace itself.
+            void buildTraceSpec(file)
+              .then((spec) => submitTraceSpec(assetId, spec))
+              .catch(() => undefined);
+          } else if (modality) {
             void measureFile(file, modality).then((measured) =>
               measured ? submitMeasurements(assetId, measured) : undefined,
             );
@@ -221,7 +228,7 @@ export function UploadQueue() {
       >
         <p className="font-medium">Drop files here, or click to browse</p>
         <p className="mt-1 text-muted-foreground">
-          Audio, video, image, 3D and motion. Files are fingerprinted in your browser —
+          Audio, video, image, 3D, motion and agent traces. Files are fingerprinted in your browser —
           no bytes leave your device at this step.
         </p>
       </button>

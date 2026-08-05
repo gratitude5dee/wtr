@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const MODALITIES = ["audio", "image", "video", "threed", "motion"] as const;
+const MODALITIES = ["audio", "image", "video", "threed", "motion", "agenttrace"] as const;
 const PRESETS = ["WTR-TRAIN-EXCLUSIVE", "WTR-TRAIN-NONEXCLUSIVE", "WTR-NO-TRAIN"] as const;
 
 const MODALITY_LABEL: Record<string, string> = {
@@ -23,6 +23,7 @@ const MODALITY_LABEL: Record<string, string> = {
   video: "Video",
   threed: "3D",
   motion: "Motion",
+  agenttrace: "Agent trace",
 };
 
 interface Filters {

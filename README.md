@@ -25,6 +25,7 @@ No dither-kit in this phase, and no UI work beyond the default page.
 | `src/lib/pipeline/ports.ts` | The only network boundaries a handler may touch. |
 | `src/lib/pipeline/adapters.ts` | Real SDK implementations of those ports. |
 | `src/lib/trace/` | Trace provider client, `trace-v1.0` documents, promotion subset. |
+| `src/lib/traces/` | Agent-trace (`agenttrace` modality) parsing, on-device redaction and trace labelers. Not to be confused with `src/lib/trace/`. |
 | `src/lib/story/` | PIL license presets and IPA/NFT metadata documents. |
 | `scripts/` | `verify-addresses`, `migrate`, `bootstrap`, `e2e`. |
 

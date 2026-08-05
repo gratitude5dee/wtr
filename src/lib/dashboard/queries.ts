@@ -10,7 +10,7 @@ import { readSession, SESSION_COOKIE, sessionsEnabled } from "../auth/session";
 import { db, type Queryable } from "../db/pool";
 import { weiFromDb } from "../money";
 
-export type Modality = "audio" | "video" | "image" | "threed" | "motion";
+export type Modality = "audio" | "video" | "image" | "threed" | "motion" | "agenttrace";
 
 export interface CreatorRow {
   id: string;

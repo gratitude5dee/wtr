@@ -27,7 +27,7 @@ const DEMO_ANON_ID = "wtr_demo";
 
 interface DemoAsset {
   filename: string;
-  modality: "audio" | "video" | "image" | "threed" | "motion";
+  modality: "audio" | "video" | "image" | "threed" | "motion" | "agenttrace";
   mediaType: string;
   byteSize: number;
   stage: string;
