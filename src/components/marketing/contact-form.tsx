@@ -31,7 +31,7 @@ export function ContactForm() {
       </label>
       <div className="flex flex-wrap items-center gap-4">
         <Button type="submit" disabled={pending}>{pending ? "Sending…" : "Request a conversation"} <span aria-hidden>↗</span></Button>
-        <a href="mailto:partnerships@wzrd.tech" className="text-sm text-[#a3a3a3] underline-offset-4 hover:text-white hover:underline">or email partnerships@wzrd.tech</a>
+        <a href="mailto:gratitude@5-dee.com" className="text-sm text-[#a3a3a3] underline-offset-4 hover:text-white hover:underline">or email gratitude@5-dee.com</a>
       </div>
       {state.message && (
         <p
