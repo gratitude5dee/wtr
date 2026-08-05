@@ -17,7 +17,7 @@ export function SiteFooter() {
           <Link href="/legal/wtr-privacy-2026-08" className="hover:text-white">
             Privacy
           </Link>
-          <a href="mailto:partnerships@wzrd.tech" className="hover:text-white">
+          <a href="mailto:gratitude@5-dee.com" className="hover:text-white">
             Contact
           </a>
         </div>
