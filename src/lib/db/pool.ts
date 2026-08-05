@@ -15,6 +15,8 @@ export interface Queryable {
 }
 
 let pool: Pool | undefined;
+// Fixed session-level advisory lock key used to serialize database migrations.
+const MIGRATION_LOCK_KEY = 4927;
 
 export function getPool(): Pool {
   if (!pool) {
@@ -34,6 +36,22 @@ export async function closePool(): Promise<void> {
 export const db: Queryable = {
   query: (sql, params) => getPool().query(sql, params ? [...params] : undefined),
 };
+
+export async function withMigrationLock<T>(fn: (sql: Queryable) => Promise<T>): Promise<T> {
+  const client: PoolClient = await getPool().connect();
+  try {
+    await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK_KEY]);
+    return await fn({
+      query: (sql, params) => client.query(sql, params ? [...params] : undefined),
+    });
+  } finally {
+    try {
+      await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK_KEY]);
+    } finally {
+      client.release();
+    }
+  }
+}
 
 /** Run `fn` inside a transaction, rolling back on any throw. */
 export async function withTransaction<T>(fn: (tx: Queryable) => Promise<T>): Promise<T> {
