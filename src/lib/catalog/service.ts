@@ -23,6 +23,12 @@ export class CatalogError extends Error {}
 export interface CatalogFilters {
   modality?: string;
   licensePreset?: string;
+  /** Case-insensitive filename substring match. */
+  search?: string;
+  /** Only listings whose terms permit training. */
+  trainingOnly?: boolean;
+  /** Only work from KYC-verified creators. */
+  kycOnly?: boolean;
 }
 
 export interface CatalogItem {
@@ -33,6 +39,7 @@ export interface CatalogItem {
   licensePreset: string;
   priceWei: bigint;
   creatorAnonId: string;
+  creatorKycStatus: string;
   listedAt: Date;
 }
 
@@ -50,6 +57,16 @@ export async function listCatalog(
     params.push(filters.licensePreset);
     where.push(`l.license_preset = $${params.length}`);
   }
+  if (filters.search) {
+    params.push(`%${filters.search}%`);
+    where.push(`a.filename ILIKE $${params.length}`);
+  }
+  if (filters.trainingOnly) {
+    where.push(`l.license_preset <> 'WTR-NO-TRAIN'`);
+  }
+  if (filters.kycOnly) {
+    where.push(`c.kyc_status = 'verified'`);
+  }
   const rows = await q.query<{
     asset_id: string;
     filename: string | null;
@@ -58,11 +75,13 @@ export async function listCatalog(
     license_preset: string;
     price_wei: string;
     creator_anon_id: string;
+    creator_kyc_status: string;
     listed_at: Date;
   }>(
     `SELECT a.id AS asset_id, a.filename, a.modality, a.preview_url,
             l.license_preset, l.price_wei::text AS price_wei,
-            c.anon_id AS creator_anon_id, l.created_at AS listed_at
+            c.anon_id AS creator_anon_id, c.kyc_status AS creator_kyc_status,
+            l.created_at AS listed_at
      FROM listing l
      JOIN asset a ON a.id = l.asset_id
      JOIN creator c ON c.id = a.creator_id
@@ -78,6 +97,7 @@ export async function listCatalog(
     licensePreset: row.license_preset,
     priceWei: weiFromDb(row.price_wei),
     creatorAnonId: row.creator_anon_id,
+    creatorKycStatus: row.creator_kyc_status,
     listedAt: row.listed_at,
   }));
 }
@@ -100,13 +120,14 @@ export async function getCatalogItem(
     license_preset: string;
     price_wei: string;
     creator_anon_id: string;
+    creator_kyc_status: string;
     creator_id: string;
     stage: string;
     listed_at: Date;
   }>(
     `SELECT a.id AS asset_id, a.filename, a.modality, a.preview_url,
             l.license_preset, l.price_wei::text AS price_wei,
-            c.anon_id AS creator_anon_id, c.id AS creator_id,
+            c.anon_id AS creator_anon_id, c.kyc_status AS creator_kyc_status, c.id AS creator_id,
             a.stage::text AS stage, l.created_at AS listed_at
      FROM listing l
      JOIN asset a ON a.id = l.asset_id
@@ -132,6 +153,7 @@ export async function getCatalogItem(
     licensePreset: row.license_preset,
     priceWei: weiFromDb(row.price_wei),
     creatorAnonId: row.creator_anon_id,
+    creatorKycStatus: row.creator_kyc_status,
     creatorId: row.creator_id,
     stage: row.stage,
     listedAt: row.listed_at,

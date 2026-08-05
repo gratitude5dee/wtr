@@ -4,7 +4,7 @@ import { TestnetBanner } from "@/components/dashboard/testnet-banner";
 import { WalletConnect } from "@/components/dashboard/wallet-connect";
 import { Badge } from "@/components/ui/badge";
 import { walletAuthEnabled } from "@/lib/auth/session";
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getCurrentCreator, getNavCounts } from "@/lib/dashboard/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,7 @@ export default async function DashboardLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const creator = await getCurrentCreator();
+  const counts = await getNavCounts(creator?.id ?? null);
   const walletAuth = walletAuthEnabled();
 
   return (
@@ -20,13 +21,18 @@ export default async function DashboardLayout({
           overlay on hover so the page never reflows. */}
       <div className="w-[68px] shrink-0" />
       <aside className="nav-rail group/rail fixed inset-y-0 left-0 z-40 flex flex-col overflow-x-hidden overflow-y-auto border-r bg-background p-3">
-        <div className="mb-6 h-10 px-2">
-          <div className="font-mono text-lg font-semibold tracking-tight">WTR</div>
-          <div className="rail-label truncate text-xs text-muted-foreground">
-            A data exchange for humans
+        <div className="mb-6 flex h-10 items-center gap-2.5 px-2">
+          <DitherAvatar name="wtr-exchange" hue={210} size={26} className="shrink-0 rounded-sm" />
+          <div className="rail-label min-w-0">
+            <div className="font-mono text-lg font-semibold leading-tight tracking-tight">
+              WTR
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              A data exchange for humans
+            </div>
           </div>
         </div>
-        <SidebarNav />
+        <SidebarNav counts={counts} />
         <div className="mt-auto space-y-3 pt-6">
           {creator ? (
             <div className="flex items-center gap-3 rounded-lg border bg-card p-2">

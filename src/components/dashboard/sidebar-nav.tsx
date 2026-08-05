@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import type { NavCounts } from "@/lib/dashboard/queries";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
@@ -20,15 +21,15 @@ const SECTIONS = [
     items: [
       { href: "/", label: "Overview", icon: LayoutDashboard },
       { href: "/upload", label: "Upload", icon: Upload },
-      { href: "/assets", label: "Assets", icon: FolderOpen },
+      { href: "/assets", label: "Assets", icon: FolderOpen, count: "assets" as const },
       { href: "/earnings", label: "Earnings", icon: Coins },
     ],
   },
   {
     label: "Buyer surface",
     items: [
-      { href: "/catalog", label: "Catalog", icon: LibraryBig },
-      { href: "/requests", label: "Requests", icon: Inbox },
+      { href: "/catalog", label: "Catalog", icon: LibraryBig, count: "catalog" as const },
+      { href: "/requests", label: "Requests", icon: Inbox, count: "requests" as const },
     ],
   },
   {
@@ -37,7 +38,7 @@ const SECTIONS = [
   },
 ] as const;
 
-export function SidebarNav() {
+export function SidebarNav({ counts }: { counts?: NavCounts }) {
   const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-5">
@@ -50,8 +51,11 @@ export function SidebarNav() {
             <div className="absolute inset-x-2 top-1/2 border-t transition-opacity duration-200 group-hover/rail:opacity-0 group-focus-within/rail:opacity-0" />
           </div>
           <div className="flex flex-col gap-1">
-            {section.items.map(({ href, label, icon: Icon }) => {
+            {section.items.map((item) => {
+              const { href, label, icon: Icon } = item;
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              const count =
+                "count" in item && counts ? counts[item.count] : undefined;
               return (
                 <Link
                   key={href}
@@ -65,7 +69,14 @@ export function SidebarNav() {
                   )}
                 >
                   <Icon className="size-4 shrink-0" />
-                  <span className="rail-label whitespace-nowrap">{label}</span>
+                  <span className="rail-label flex min-w-0 flex-1 items-center justify-between whitespace-nowrap">
+                    {label}
+                    {count !== undefined && (
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {count}
+                      </span>
+                    )}
+                  </span>
                 </Link>
               );
             })}
