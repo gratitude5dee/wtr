@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Area } from "@/components/dither-kit/area";
 import { AreaChart } from "@/components/dither-kit/area-chart";
 import { Bar } from "@/components/dither-kit/bar";
@@ -14,8 +15,6 @@ import { cn } from "@/lib/utils";
 interface MetricCard {
   title: string;
   value: string;
-  color: "green" | "purple" | "blue";
-  data: number[];
 }
 
 interface ListedRow {
@@ -32,22 +31,18 @@ const metricCards: MetricCard[] = [
   {
     title: "ASSETS LISTED OVER TIME",
     value: "1,284",
-    color: "green",
-    data: [5, 8, 7, 13, 17, 16, 24, 29, 35],
   },
   {
     title: "EARNINGS BY MONTH",
     value: "18,420 IP",
-    color: "purple",
-    data: [5, 11, 9, 18, 14, 22, 29, 27, 38],
   },
   {
     title: "REQUESTS FUNDED",
     value: "64",
-    color: "blue",
-    data: [3, 5, 5, 8, 11, 10, 15, 19, 22],
   },
 ];
+
+const requestsData = [3, 5, 5, 8, 11, 10, 15, 19, 22];
 
 const listedData: ListedRow[] = [
   { month: "JAN", assets: 8 },
@@ -82,61 +77,53 @@ export function Metrics() {
         </Badge>
       </div>
       <div className="mt-12 grid gap-4 lg:grid-cols-3">
-        <Card className="border-white/10 bg-[#141414]">
-          <CardHeader>
-              <div className={cn(monoLabel, "text-[#a3a3a3]")}>
-              {metricCards[0].title}
-            </div>
-            <CardTitle className="mt-3 text-3xl">{metricCards[0].value}</CardTitle>
-          </CardHeader>
-          <CardContent className="h-28">
-            <BarChart
-              data={listedData}
-              config={{ assets: { label: "Assets", color: "green" } }}
-              interactive={false}
-              bloom="low"
-            >
-              <XAxis dataKey="month" />
-              <Bar dataKey="assets" />
-            </BarChart>
-          </CardContent>
-        </Card>
-        <Card className="border-white/10 bg-[#141414]">
-          <CardHeader>
-              <div className={cn(monoLabel, "text-[#a3a3a3]")}>
-              {metricCards[1].title}
-            </div>
-            <CardTitle className="mt-3 text-3xl">{metricCards[1].value}</CardTitle>
-          </CardHeader>
-          <CardContent className="h-28">
-            <AreaChart
-              data={earningsData}
-              config={{ earnings: { label: "Earnings", color: "purple" } }}
-              interactive={false}
-              bloom="low"
-            >
-              <XAxis dataKey="month" />
-              <Area dataKey="earnings" variant="gradient" />
-            </AreaChart>
-          </CardContent>
-        </Card>
-        <Card className="border-white/10 bg-[#141414]">
-          <CardHeader>
-              <div className={cn(monoLabel, "text-[#a3a3a3]")}>
-              {metricCards[2].title}
-            </div>
-            <CardTitle className="mt-3 text-3xl">{metricCards[2].value}</CardTitle>
-          </CardHeader>
-          <CardContent className="h-28">
-            <Sparkline
-              data={metricCards[2].data}
-              color={metricCards[2].color}
-              animate
-              bloom="low"
-            />
-          </CardContent>
-        </Card>
+        <MetricCard {...metricCards[0]}>
+          <BarChart
+            data={listedData}
+            config={{ assets: { label: "Assets", color: "green" } }}
+            interactive={false}
+            bloom="low"
+          >
+            <XAxis dataKey="month" />
+            <Bar dataKey="assets" />
+          </BarChart>
+        </MetricCard>
+        <MetricCard {...metricCards[1]}>
+          <AreaChart
+            data={earningsData}
+            config={{ earnings: { label: "Earnings", color: "purple" } }}
+            interactive={false}
+            bloom="low"
+          >
+            <XAxis dataKey="month" />
+            <Area dataKey="earnings" variant="gradient" />
+          </AreaChart>
+        </MetricCard>
+        <MetricCard {...metricCards[2]}>
+          <Sparkline
+            data={requestsData}
+            color="blue"
+            animate
+            bloom="low"
+          />
+        </MetricCard>
       </div>
     </section>
+  );
+}
+
+function MetricCard({
+  title,
+  value,
+  children,
+}: MetricCard & { children: ReactNode }) {
+  return (
+    <Card className="border-white/10 bg-[#141414]">
+      <CardHeader>
+        <div className={cn(monoLabel, "text-[#a3a3a3]")}>{title}</div>
+        <CardTitle className="mt-3 text-3xl">{value}</CardTitle>
+      </CardHeader>
+      <CardContent className="h-28">{children}</CardContent>
+    </Card>
   );
 }

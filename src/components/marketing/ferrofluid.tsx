@@ -53,16 +53,7 @@ const prepareColors = (input: string[]) => {
   const arr = Array.from({ length: MAX_COLORS }, (_, index) =>
     hexToRgb(base[Math.min(index, base.length - 1)]),
   );
-  const avg: [number, number, number] = [0, 0, 0];
-  for (const color of arr.slice(0, base.length)) {
-    avg[0] += color[0];
-    avg[1] += color[1];
-    avg[2] += color[2];
-  }
-  avg[0] /= base.length;
-  avg[1] /= base.length;
-  avg[2] /= base.length;
-  return { arr, count: base.length, avg };
+  return { arr, count: base.length };
 };
 
 const flowVector = (direction: FlowDirection): [number, number] => {
