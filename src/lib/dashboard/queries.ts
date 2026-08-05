@@ -85,6 +85,82 @@ export async function getPipelineFunnel(creatorId: string, q: Queryable = db): P
   return ORDER.map((stage) => ({ stage, count: byStage.get(stage) ?? 0 }));
 }
 
+export interface OverviewStats {
+  listed: number;
+  pipeline: number;
+  grossWei: bigint;
+  claimableWei: bigint;
+}
+
+/** Headline numbers for the overview cards, all from projections. */
+export async function getOverviewStats(
+  creatorId: string,
+  q: Queryable = db,
+): Promise<OverviewStats> {
+  const [stages, gross, paid] = await Promise.all([
+    q.query<{ stage: string; count: string }>(
+      `SELECT stage::text AS stage, count(*)::text AS count
+       FROM asset WHERE creator_id = $1 GROUP BY stage`,
+      [creatorId],
+    ),
+    q.query<{ total: string }>(
+      `SELECT coalesce(sum(s.amount_wei), 0)::text AS total
+       FROM sale s JOIN asset a ON a.id = s.asset_id WHERE a.creator_id = $1`,
+      [creatorId],
+    ),
+    q.query<{ total: string }>(
+      `SELECT coalesce(sum(amount_wei), 0)::text AS total
+       FROM payout WHERE creator_id = $1 AND status <> 'failed'`,
+      [creatorId],
+    ),
+  ]);
+  const byStage = new Map(stages.rows.map((row) => [row.stage, Number(row.count)]));
+  const pipelineStages = ["IN_TRAY", "LABELED", "REGISTERED", "FAILED_REGISTER"];
+  const grossWei = weiFromDb(gross.rows[0]?.total ?? "0");
+  const paidWei = weiFromDb(paid.rows[0]?.total ?? "0");
+  const claimableWei = grossWei > paidWei ? grossWei - paidWei : 0n;
+  return {
+    listed: byStage.get("LISTED") ?? 0,
+    pipeline: pipelineStages.reduce((sum, stage) => sum + (byStage.get(stage) ?? 0), 0),
+    grossWei,
+    claimableWei,
+  };
+}
+
+export interface NavCounts {
+  assets: number;
+  requests: number;
+  catalog: number;
+}
+
+/** Live counts shown next to the nav rail's links. */
+export async function getNavCounts(
+  creatorId: string | null,
+  q: Queryable = db,
+): Promise<NavCounts> {
+  const [assets, requests, catalog] = await Promise.all([
+    creatorId
+      ? q.query<{ count: string }>(
+          `SELECT count(*)::text AS count FROM asset WHERE creator_id = $1`,
+          [creatorId],
+        )
+      : null,
+    q.query<{ count: string }>(
+      `SELECT count(*)::text AS count FROM data_request WHERE status = 'open'`,
+    ),
+    q.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+       FROM listing l JOIN asset a ON a.id = l.asset_id
+       WHERE l.status = 'active' AND a.stage IN ('LISTED', 'SOLD', 'SETTLED')`,
+    ),
+  ]);
+  return {
+    assets: assets ? Number(assets.rows[0]?.count ?? 0) : 0,
+    requests: Number(requests.rows[0]?.count ?? 0),
+    catalog: Number(catalog.rows[0]?.count ?? 0),
+  };
+}
+
 export interface EarningsPoint {
   month: string;
   /** Wei, kept as bigint until the render boundary. */
@@ -128,11 +204,17 @@ export interface AssetSummary {
   stage: string;
   modality: string;
   filename: string | null;
+  byteSize: string | null;
   contentSha256: string;
   duplicateClaimFlag: boolean;
   ipId: string | null;
   traceDataId: string | null;
   createdAt: Date;
+  licensePreset: string | null;
+  priceWei: bigint | null;
+  listingStatus: string | null;
+  salesCount: number;
+  grossWei: bigint;
 }
 
 export async function listAssets(creatorId: string, q: Queryable = db): Promise<AssetSummary[]> {
@@ -141,15 +223,33 @@ export async function listAssets(creatorId: string, q: Queryable = db): Promise<
     stage: string;
     modality: string;
     filename: string | null;
+    byte_size: string | null;
     content_sha256: string;
     duplicate_claim_flag: boolean;
     ip_id: string | null;
     trace_data_id: string | null;
     created_at: Date;
+    license_preset: string | null;
+    price_wei: string | null;
+    listing_status: string | null;
+    sales_count: string;
+    gross_wei: string | null;
   }>(
-    `SELECT id, stage::text AS stage, modality, filename, content_sha256,
-            duplicate_claim_flag, ip_id, trace_data_id, created_at
-     FROM asset WHERE creator_id = $1 ORDER BY created_at DESC`,
+    `SELECT a.id, a.stage::text AS stage, a.modality, a.filename,
+            a.byte_size::text AS byte_size, a.content_sha256,
+            a.duplicate_claim_flag, a.ip_id, a.trace_data_id, a.created_at,
+            l.license_preset, l.price_wei::text AS price_wei, l.status AS listing_status,
+            count(s.id)::text AS sales_count,
+            coalesce(sum(s.amount_wei), 0)::text AS gross_wei
+     FROM asset a
+     LEFT JOIN LATERAL (
+       SELECT license_preset, price_wei, status
+       FROM listing WHERE asset_id = a.id ORDER BY created_at DESC LIMIT 1
+     ) l ON true
+     LEFT JOIN sale s ON s.asset_id = a.id
+     WHERE a.creator_id = $1
+     GROUP BY a.id, l.license_preset, l.price_wei, l.status
+     ORDER BY a.created_at DESC`,
     [creatorId],
   );
   return result.rows.map((row) => ({
@@ -157,11 +257,17 @@ export async function listAssets(creatorId: string, q: Queryable = db): Promise<
     stage: row.stage,
     modality: row.modality,
     filename: row.filename,
+    byteSize: row.byte_size,
     contentSha256: row.content_sha256,
     duplicateClaimFlag: row.duplicate_claim_flag,
     ipId: row.ip_id,
     traceDataId: row.trace_data_id,
     createdAt: row.created_at,
+    licensePreset: row.license_preset,
+    priceWei: row.price_wei === null ? null : weiFromDb(row.price_wei),
+    listingStatus: row.listing_status,
+    salesCount: Number(row.sales_count),
+    grossWei: weiFromDb(row.gross_wei ?? "0"),
   }));
 }
 
@@ -183,7 +289,16 @@ export interface AssetEventRow {
   createdAt: Date;
 }
 
-export interface AssetDetail extends AssetSummary {
+export interface AssetDetail {
+  id: string;
+  stage: string;
+  modality: string;
+  filename: string | null;
+  contentSha256: string;
+  duplicateClaimFlag: boolean;
+  ipId: string | null;
+  traceDataId: string | null;
+  createdAt: Date;
   byteSize: string | null;
   mediaType: string;
   previewUrl: string | null;
@@ -415,9 +530,15 @@ export interface DataRequestRow {
   requester: string;
   licensePreset: string;
   budgetWei: bigint;
+  unitPriceWei: bigint | null;
+  kycRequired: boolean;
+  deadline: Date | null;
+  modality: string | null;
+  notes: string | null;
   status: string;
   createdAt: Date;
   mySubmissions: number;
+  totalSubmissions: number;
 }
 
 export async function listDataRequests(
@@ -430,13 +551,22 @@ export async function listDataRequests(
     requester_anon_id: string;
     license_preset: string;
     budget_wei: string;
+    unit_price_wei: string | null;
+    kyc_required: boolean;
+    deadline: Date | null;
+    modality: string | null;
+    notes: string | null;
     status: string;
     created_at: Date;
     my_submissions: string;
+    total_submissions: string;
   }>(
     `SELECT r.id, r.title, r.requester_anon_id, r.license_preset, r.budget_wei::text AS budget_wei,
+            r.unit_price_wei::text AS unit_price_wei, r.kyc_required, r.deadline,
+            r.spec->>'modality' AS modality, r.spec->>'notes' AS notes,
             r.status, r.created_at,
-            count(s.id) FILTER (WHERE a.creator_id = $1)::text AS my_submissions
+            count(s.id) FILTER (WHERE a.creator_id = $1)::text AS my_submissions,
+            count(s.id)::text AS total_submissions
      FROM data_request r
      LEFT JOIN submission s ON s.data_request_id = r.id
      LEFT JOIN asset a ON a.id = s.asset_id
@@ -449,9 +579,15 @@ export async function listDataRequests(
     requester: row.requester_anon_id,
     licensePreset: row.license_preset,
     budgetWei: weiFromDb(row.budget_wei),
+    unitPriceWei: row.unit_price_wei === null ? null : weiFromDb(row.unit_price_wei),
+    kycRequired: row.kyc_required,
+    deadline: row.deadline,
+    modality: row.modality,
+    notes: row.notes,
     status: row.status,
     createdAt: row.created_at,
     mySubmissions: Number(row.my_submissions),
+    totalSubmissions: Number(row.total_submissions),
   }));
 }
 
