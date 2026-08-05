@@ -59,6 +59,13 @@ export function RequestForm() {
   // datetime-local strings carry no offset — convert to a UTC instant in the
   // poster's browser so the server never guesses a timezone.
   const [deadlineIso, setDeadlineIso] = useState("");
+  const [deadlineLocal, setDeadlineLocal] = useState("");
+  // Controlled throughout: a rejected submit re-renders the form, and only
+  // React-held values survive that, so a validation error never eats the brief.
+  const [title, setTitle] = useState("");
+  const [unitPrice, setUnitPrice] = useState("");
+  const [notes, setNotes] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [budget, setBudget] = useState("");
   const [fundingMode, setFundingMode] = useState<FundingChoice>("none");
   const [fundedAmount, setFundedAmount] = useState("");
@@ -93,6 +100,8 @@ export function RequestForm() {
           placeholder="Field recordings of urban rain, 48kHz+"
           maxLength={200}
           required
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
         />
       </div>
 
@@ -155,7 +164,14 @@ export function RequestForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="unitPrice">Per-item price (IP, optional)</Label>
-          <Input id="unitPrice" name="unitPrice" placeholder="0.5" inputMode="decimal" />
+          <Input
+            id="unitPrice"
+            name="unitPrice"
+            placeholder="0.5"
+            inputMode="decimal"
+            value={unitPrice}
+            onChange={(event) => setUnitPrice(event.target.value)}
+          />
         </div>
       </div>
 
@@ -277,8 +293,10 @@ export function RequestForm() {
         <Input
           id="deadline"
           type="datetime-local"
+          value={deadlineLocal}
           onChange={(event) => {
             const local = event.target.value;
+            setDeadlineLocal(local);
             const parsed = new Date(local);
             setDeadlineIso(local && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : "");
           }}
@@ -294,6 +312,8 @@ export function RequestForm() {
           rows={4}
           maxLength={2000}
           placeholder="What you need, quality bar, what gets accepted…"
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
         />
       </div>
 
@@ -305,6 +325,8 @@ export function RequestForm() {
           rows={3}
           maxLength={2000}
           placeholder="Delivery format, naming, anything a creator must do differently…"
+          value={instructions}
+          onChange={(event) => setInstructions(event.target.value)}
         />
       </div>
 

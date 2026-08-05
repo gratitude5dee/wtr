@@ -22,6 +22,7 @@ export interface CreatorRow {
   kycCountry: string | null;
   taxStatus: string;
   payoutPref: string;
+  labVerified: boolean;
 }
 
 /**
@@ -74,9 +75,10 @@ async function resolveCreator(
     kyc_country: string | null;
     tax_status: string;
     payout_pref: string;
+    lab_verified: boolean;
   }>(
     `SELECT id, anon_id, display_name, avatar_seed, wallet_address,
-            kyc_status, kyc_country, tax_status, payout_pref
+            kyc_status, kyc_country, tax_status, payout_pref, lab_verified
      FROM creator ${where}`,
     params,
   );
@@ -92,6 +94,7 @@ async function resolveCreator(
     kycCountry: row.kyc_country,
     taxStatus: row.tax_status,
     payoutPref: row.payout_pref,
+    labVerified: row.lab_verified,
   };
 }
 

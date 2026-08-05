@@ -52,6 +52,12 @@ export interface BulkApplyResult {
 /** Stages during which labels and license choices may still change. */
 const EDITABLE_STAGES = ["IN_TRAY", "LABELED"] as const;
 
+/**
+ * `wtr:` keys owned by the license flow. Free-form labels may not touch them:
+ * an unvalidated `ask_price_wei` would break every reader that parses it.
+ */
+const RESERVED_KEYS = ["license_preset", "ask_price_wei"] as const;
+
 const LABEL_UPSERT = `
   INSERT INTO asset_label (asset_id, namespace, key, value, source, confidence, confirmed_by_creator)
   VALUES ($1, 'wtr', $2, to_jsonb($3::text), 'creator', 1.0, TRUE)
@@ -89,6 +95,13 @@ export async function batchApply(
   if (input.licensePreset !== null && askPriceWei === null) {
     throw new RosterError("a license choice needs an ask price");
   }
+  for (const label of input.labels) {
+    if ((RESERVED_KEYS as readonly string[]).includes(label.key.trim())) {
+      throw new RosterError(
+        `"${label.key.trim()}" is set by the license choice, not by a label`,
+      );
+    }
+  }
 
   const owned = await q.query<{ id: string; stage: string }>(
     `SELECT a.id, a.stage::text AS stage
@@ -107,8 +120,11 @@ export async function batchApply(
       if (!key || !value) continue;
       await q.query(LABEL_UPSERT, [asset.id, key, value]);
     }
-    if (input.licensePreset !== null && askPriceWei !== null) {
+    if (input.licensePreset !== null) {
       await q.query(LABEL_UPSERT, [asset.id, "license_preset", input.licensePreset]);
+    }
+    // A price on its own is a repricing, valid without touching the preset.
+    if (askPriceWei !== null) {
       await q.query(LABEL_UPSERT, [asset.id, "ask_price_wei", askPriceWei.toString()]);
     }
   }

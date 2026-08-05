@@ -115,21 +115,34 @@ export function Walkthrough() {
 
   useEffect(() => {
     if (!step) return;
-    // The anchor may not exist yet (navigation in flight) — poll briefly, then
-    // fall back to the centred card.
-    let frame = 0;
+    let timer = 0;
+    let found: Element | null = null;
+    let attempts = 0;
+    const track = () => {
+      if (found) setRect(found.getBoundingClientRect());
+    };
+    // The anchor may not exist yet (navigation in flight), so poll until it
+    // appears — then stop, scroll to it once, and only follow it on scroll or
+    // resize. Polling forever would drag the reader back every tick.
     const locate = () => {
-      const element = document.querySelector(`[data-tour="${step.anchor}"]`);
-      if (element) {
-        setRect(element.getBoundingClientRect());
-        element.scrollIntoView({ block: "center", behavior: "smooth" });
-      } else {
-        setRect(null);
+      found = document.querySelector(`[data-tour="${step.anchor}"]`);
+      if (found) {
+        setRect(found.getBoundingClientRect());
+        found.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
       }
-      frame = window.setTimeout(locate, 400);
+      setRect(null);
+      attempts += 1;
+      if (attempts < 15) timer = window.setTimeout(locate, 200);
     };
     locate();
-    return () => window.clearTimeout(frame);
+    window.addEventListener("scroll", track, true);
+    window.addEventListener("resize", track);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("scroll", track, true);
+      window.removeEventListener("resize", track);
+    };
   }, [step, pathname]);
 
   const go = useCallback(
