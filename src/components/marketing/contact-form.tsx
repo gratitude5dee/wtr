@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { submitPartnerInquiry, type ContactState } from "@/app/(marketing)/landing/actions";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const initialState: ContactState = { ok: false, message: "" };
@@ -32,7 +33,19 @@ export function ContactForm() {
         <Button type="submit" disabled={pending}>{pending ? "Sending…" : "Request a conversation"} <span aria-hidden>↗</span></Button>
         <a href="mailto:partnerships@wzrd.tech" className="text-sm text-[#a3a3a3] underline-offset-4 hover:text-white hover:underline">or email partnerships@wzrd.tech</a>
       </div>
-      {state.message && <p role="status" className={`text-sm ${state.ok ? "text-[rgb(var(--tint-green))]" : "text-[rgb(var(--tint-orange))]"}`}>{state.message}</p>}
+      {state.message && (
+        <p
+          role="status"
+          className={cn(
+            "text-sm",
+            state.ok
+              ? "text-[rgb(var(--tint-green))]"
+              : "text-[rgb(var(--tint-orange))]",
+          )}
+        >
+          {state.message}
+        </p>
+      )}
     </form>
   );
 }

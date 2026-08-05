@@ -1,12 +1,40 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import type { CSSProperties } from "react";
 import { Mesh, Program, Renderer, Triangle } from "ogl";
+import { cn } from "@/lib/utils";
 
 const MAX_COLORS = 8;
 type FlowDirection = "up" | "down" | "left" | "right";
 type Uniform<T> = { value: T };
-type Uniforms = Record<string, Uniform<number | number[]>>;
+interface FerroUniforms {
+  iResolution: Uniform<[number, number, number]>;
+  iMouse: Uniform<[number, number]>;
+  iTime: Uniform<number>;
+  uColor0: Uniform<[number, number, number]>;
+  uColor1: Uniform<[number, number, number]>;
+  uColor2: Uniform<[number, number, number]>;
+  uColor3: Uniform<[number, number, number]>;
+  uColor4: Uniform<[number, number, number]>;
+  uColor5: Uniform<[number, number, number]>;
+  uColor6: Uniform<[number, number, number]>;
+  uColor7: Uniform<[number, number, number]>;
+  uColorCount: Uniform<number>;
+  uFlow: Uniform<[number, number]>;
+  uSpeed: Uniform<number>;
+  uScale: Uniform<number>;
+  uTurbulence: Uniform<number>;
+  uFluidity: Uniform<number>;
+  uRimWidth: Uniform<number>;
+  uSharpness: Uniform<number>;
+  uShimmer: Uniform<number>;
+  uGlow: Uniform<number>;
+  uOpacity: Uniform<number>;
+  uMouseEnabled: Uniform<number>;
+  uMouseStrength: Uniform<number>;
+  uMouseRadius: Uniform<number>;
+}
 
 const hexToRgb = (hex: string): [number, number, number] => {
   const color = hex.replace("#", "").padEnd(6, "0");
@@ -25,10 +53,15 @@ const prepareColors = (input: string[]) => {
   const arr = Array.from({ length: MAX_COLORS }, (_, index) =>
     hexToRgb(base[Math.min(index, base.length - 1)]),
   );
-  const avg = arr.slice(0, base.length).reduce(
-    (total, color) => total.map((value, index) => value + color[index]) as [number, number, number],
-    [0, 0, 0] as [number, number, number],
-  ).map((value) => value / base.length) as [number, number, number];
+  const avg: [number, number, number] = [0, 0, 0];
+  for (const color of arr.slice(0, base.length)) {
+    avg[0] += color[0];
+    avg[1] += color[1];
+    avg[2] += color[2];
+  }
+  avg[0] /= base.length;
+  avg[1] /= base.length;
+  avg[2] /= base.length;
   return { arr, count: base.length, avg };
 };
 
@@ -74,7 +107,7 @@ export interface FerrofluidProps {
   mouseStrength?: number;
   mouseRadius?: number;
   mouseDampening?: number;
-  mixBlendMode?: React.CSSProperties["mixBlendMode"];
+  mixBlendMode?: CSSProperties["mixBlendMode"];
   paused?: boolean;
   dpr?: number;
 }
@@ -101,11 +134,13 @@ export default function Ferrofluid({
   dpr,
 }: FerrofluidProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const colorsKey = useMemo(() => colors.join("|"), [colors]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || typeof window === "undefined") return;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const effectColors = colorsKey.split("|");
     const renderer = new Renderer({ dpr: Math.min(dpr ?? (window.devicePixelRatio || 1), 2), alpha: true, antialias: true });
     const { gl } = renderer;
     const canvas = gl.canvas;
@@ -113,8 +148,8 @@ export default function Ferrofluid({
     canvas.style.cssText = "width:100%;height:100%;display:block";
     gl.clearColor(0, 0, 0, 0);
     container.appendChild(canvas);
-    const prepared = prepareColors(colors);
-    const uniforms: Uniforms = {
+    const prepared = prepareColors(effectColors);
+    const uniforms: FerroUniforms = {
       iResolution: { value: [gl.drawingBufferWidth, gl.drawingBufferHeight, 1] },
       iMouse: { value: [0, 0] }, iTime: { value: 0 },
       uColor0: { value: prepared.arr[0] }, uColor1: { value: prepared.arr[1] }, uColor2: { value: prepared.arr[2] }, uColor3: { value: prepared.arr[3] },
@@ -127,24 +162,71 @@ export default function Ferrofluid({
     const program = new Program(gl, { vertex, fragment, uniforms });
     const geometry = new Triangle(gl);
     const mesh = new Mesh(gl, { geometry, program });
-    const mouse = { target: [0, 0] as [number, number], last: 0 };
-    const resize = () => { const rect = container.getBoundingClientRect(); renderer.setSize(rect.width, rect.height); uniforms.iResolution.value = [gl.drawingBufferWidth, gl.drawingBufferHeight, 1]; };
+    const mouse: { target: [number, number]; last: number } = {
+      target: [0, 0],
+      last: 0,
+    };
+    const draw = () => renderer.render({ scene: mesh });
+    const resize = () => {
+      const rect = container.getBoundingClientRect();
+      renderer.setSize(rect.width, rect.height);
+      uniforms.iResolution.value = [gl.drawingBufferWidth, gl.drawingBufferHeight, 1];
+      if (reduceMotion.matches) draw();
+    };
     const observer = new ResizeObserver(resize); resize(); observer.observe(container);
     const move = (event: PointerEvent) => { const rect = canvas.getBoundingClientRect(); const factor = renderer.dpr || 1; mouse.target = [(event.clientX - rect.left) * factor, (rect.height - event.clientY + rect.top) * factor]; };
     if (mouseInteraction) canvas.addEventListener("pointermove", move);
     let frame = 0;
     const render = (time: number) => {
       frame = requestAnimationFrame(render);
-      if (reduceMotion.matches || document.hidden || paused) return;
+      if (document.hidden || paused) return;
+      if (reduceMotion.matches) {
+        draw();
+        cancelAnimationFrame(frame);
+        return;
+      }
       uniforms.iTime.value = time * 0.001;
-      if (mouseDampening > 0) { const dt = mouse.last ? (time - mouse.last) / 1000 : 0; mouse.last = time; const factor = 1 - Math.exp(-dt / Math.max(mouseDampening, 0.0001)); const current = uniforms.iMouse.value as number[]; current[0] += (mouse.target[0] - current[0]) * factor; current[1] += (mouse.target[1] - current[1]) * factor; } else uniforms.iMouse.value = mouse.target;
-      renderer.render({ scene: mesh });
+      if (mouseDampening > 0) {
+        const dt = mouse.last ? (time - mouse.last) / 1000 : 0;
+        mouse.last = time;
+        const factor =
+          1 - Math.exp(-dt / Math.max(mouseDampening, 0.0001));
+        const current = uniforms.iMouse.value;
+        current[0] += (mouse.target[0] - current[0]) * factor;
+        current[1] += (mouse.target[1] - current[1]) * factor;
+      } else {
+        uniforms.iMouse.value = mouse.target;
+      }
+      draw();
     };
     frame = requestAnimationFrame(render);
-    const visibility = () => { if (!document.hidden && reduceMotion.matches) renderer.render({ scene: mesh }); };
+    const visibility = () => {
+      if (!document.hidden && reduceMotion.matches) draw();
+    };
+    const motionPreference = () => {
+      if (reduceMotion.matches) draw();
+      else frame = requestAnimationFrame(render);
+    };
     document.addEventListener("visibilitychange", visibility);
-    return () => { cancelAnimationFrame(frame); document.removeEventListener("visibilitychange", visibility); if (mouseInteraction) canvas.removeEventListener("pointermove", move); observer.disconnect(); if (canvas.parentElement === container) container.removeChild(canvas); program.remove(); geometry.remove(); renderer.gl.getExtension("WEBGL_lose_context")?.loseContext(); };
-  }, [colors, dpr, flowDirection, fluidity, glow, mouseDampening, mouseInteraction, mouseRadius, mouseStrength, opacity, paused, rimWidth, scale, sharpness, shimmer, speed, turbulence]);
+    reduceMotion.addEventListener("change", motionPreference);
+    return () => {
+      cancelAnimationFrame(frame);
+      reduceMotion.removeEventListener("change", motionPreference);
+      document.removeEventListener("visibilitychange", visibility);
+      if (mouseInteraction) canvas.removeEventListener("pointermove", move);
+      observer.disconnect();
+      if (canvas.parentElement === container) container.removeChild(canvas);
+      program.remove();
+      geometry.remove();
+      renderer.gl.getExtension("WEBGL_lose_context")?.loseContext();
+    };
+  }, [colorsKey, dpr, flowDirection, fluidity, glow, mouseDampening, mouseInteraction, mouseRadius, mouseStrength, opacity, paused, rimWidth, scale, sharpness, shimmer, speed, turbulence]);
 
-  return <div ref={containerRef} className={`relative h-full w-full overflow-hidden ${className ?? ""}`} style={{ mixBlendMode }} />;
+  return (
+    <div
+      ref={containerRef}
+      className={cn("relative h-full w-full overflow-hidden", className)}
+      style={{ mixBlendMode }}
+    />
+  );
 }
