@@ -3,14 +3,14 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { UploadQueue } from "@/components/dashboard/upload-queue";
 import { hasCurrentConsent } from "@/lib/consent/service";
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function UploadPage() {
   // goal.md P0-1: no upload surface without an active acceptance of the
   // CURRENT documents. A stale acceptance routes back through onboarding.
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator || !(await hasCurrentConsent(creator.id))) redirect("/onboarding");
 
   return (
