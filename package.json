@@ -40,6 +40,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "thirdweb": "5.120.1",
+    "three": "^0.169.0",
     "viem": "2.37.5"
   },
   "devDependencies": {
@@ -51,6 +52,7 @@
     "@types/pg": "8.15.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.169.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.22",
     "shadcn": "^4.16.1",

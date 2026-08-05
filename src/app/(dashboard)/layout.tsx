@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { DitherAvatar } from "@/components/dither-kit/avatar";
+import GridDistortion from "@/components/dashboard/grid-distortion";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { TestnetBanner } from "@/components/dashboard/testnet-banner";
 import { WalletConnect } from "@/components/dashboard/wallet-connect";
@@ -20,6 +21,17 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <GridDistortion
+          imageSrc="https://picsum.photos/1920/1080?grayscale"
+          grid={15}
+          mouse={0.12}
+          strength={0.15}
+          relaxation={0.92}
+          className="opacity-40"
+        />
+        <div className="absolute inset-0 bg-[#0a0a0a]/60 [background-image:radial-gradient(circle_at_50%_0%,rgba(56,132,255,0.12),transparent_60%)]" />
+      </div>
       {/* Reserves the collapsed rail's width; the rail itself expands as an
           overlay on hover so the page never reflows. */}
       <div className="w-[68px] shrink-0" />
