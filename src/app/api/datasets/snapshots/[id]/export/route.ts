@@ -29,7 +29,9 @@ export async function GET(request: NextRequest, context: Context): Promise<Respo
   }
 
   try {
-    const result = await exportSnapshot(id, template);
+    const result = await exportSnapshot(id, template, undefined, {
+      withTraceDocuments: part === "card",
+    });
     const body = part === "card" ? result.card : result.body;
     const filename =
       part === "card" ? result.filename.replace(/\.jsonl$/, "-card.md") : result.filename;

@@ -245,11 +245,16 @@ export function datasetCard(
  * Loads a snapshot's frozen membership and renders one export template.
  * Missing preference pairs (or a database where migration 0009 has not landed)
  * produce an empty DPO export rather than an error.
+ *
+ * `withTraceDocuments` gates the provenance section of the card: building it
+ * costs ~8 queries per asset, so a plain data download never pays for text it
+ * throws away.
  */
 export async function exportSnapshot(
   snapshotId: string,
   template: string,
   q: Queryable = db,
+  options: { withTraceDocuments?: boolean } = {},
 ): Promise<DatasetExport> {
   if (!isExportTemplate(template)) {
     throw new DatasetError(`unknown export template "${template}"`);
@@ -270,10 +275,12 @@ export async function exportSnapshot(
           q,
         )
       : [];
-  const traceDocuments = await loadTraceDocuments(
-    members.map((member) => member.assetId),
-    q,
-  );
+  const traceDocuments = options.withTraceDocuments
+    ? await loadTraceDocuments(
+        members.map((member) => member.assetId),
+        q,
+      )
+    : [];
   return buildExport(template, { dataset, snapshot, members, preferencePairs, traceDocuments });
 }
 
