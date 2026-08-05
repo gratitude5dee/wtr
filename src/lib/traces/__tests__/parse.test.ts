@@ -133,6 +133,12 @@ describe("parseTrace", () => {
     expect(() => parseTrace(truncated)).toThrow(/line 4/);
   });
 
+  it("rejects a file that mixes exports rather than dropping foreign records", () => {
+    const mixed = [CLAUDE_CODE, OPENCLAW, CODEX].join("\n");
+    expect(() => parseTrace(mixed)).toThrow(TraceParseError);
+    expect(() => parseTrace(mixed)).toThrow(/mixes formats/);
+  });
+
   it("rejects a JSONL line that is not an object", () => {
     expect(() => parseTrace('{"event":"message","role":"user","content":"hi"}\n"bare string"')).toThrow(
       /line 2 is not a JSON object/,

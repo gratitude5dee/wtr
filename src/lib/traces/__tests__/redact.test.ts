@@ -36,6 +36,7 @@ describe("redactText", () => {
       "host 10.1.2.3",
       "card 4111 1111 1111 1111",
       "bearer ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop",
+      "jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJTRUNSRVQifQ.SIGNATUREAAAABBBB",
     ].join("\n");
     const redacted = redactText(raw);
     expect(redacted).not.toMatch(/example\.com/);
@@ -47,6 +48,12 @@ describe("redactText", () => {
     expect(redacted).toMatch(/\[redacted:url\]/);
     expect(redacted).toMatch(/\[redacted:hex\]/);
     expect(redacted).toMatch(/\[redacted:path\]/);
+    expect(redacted).not.toMatch(/eyJ/);
+  });
+
+  it("removes JWTs, whose segments are each too short for the token rule", () => {
+    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJTRU5USU5FTEpXVCJ9.SENTINELJWTSIGNATUREAAAABBBB";
+    expect(redactText(`auth: ${jwt}`)).toBe("auth: [redacted:token]");
   });
 
   it("removes PEM key blocks whole", () => {

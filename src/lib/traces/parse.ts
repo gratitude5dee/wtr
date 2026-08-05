@@ -164,6 +164,36 @@ function isOpenClaw(records: readonly Record<string, unknown>[]): boolean {
 }
 
 /**
+ * The format a single JSONL record belongs to, by its marker key, or null when
+ * it carries no marker at all (an evolving export's bookkeeping line).
+ */
+function recordFormat(record: Record<string, unknown>): TraceFormat | null {
+  if (asRecord(record.message) !== null) return "claude_code";
+  if (asRecord(record.payload) !== null) return "codex";
+  if (typeof record.event === "string") return "openclaw";
+  return null;
+}
+
+/**
+ * Rejects a file whose records come from more than one tool. Without this a
+ * mixed export parses as whichever format was detected first and silently
+ * drops every foreign record, yielding confident but wrong counts.
+ */
+function assertSingleFormat(
+  format: TraceFormat,
+  records: readonly Record<string, unknown>[],
+): void {
+  for (const [index, record] of records.entries()) {
+    const found = recordFormat(record);
+    if (found !== null && found !== format) {
+      throw new TraceParseError(
+        `trace mixes formats: line ${index + 1} looks like ${found}, not ${format}`,
+      );
+    }
+  }
+}
+
+/**
  * Names the export format. `.json` documents can only be Hermes; JSONL is
  * disambiguated by the marker key each tool writes (`message`, `payload`,
  * `event`). Ambiguity is an error rather than a guess.
@@ -423,6 +453,7 @@ export function parseTrace(raw: string): CanonicalTrace {
   const format = detectTraceFormat(raw);
   if (format === "hermes") return fromHermes(raw);
   const records = parseLines(raw);
+  assertSingleFormat(format, records);
   if (format === "claude_code") return fromClaudeCode(records);
   if (format === "codex") return fromCodex(records);
   return fromOpenClaw(records);
