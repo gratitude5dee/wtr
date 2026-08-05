@@ -142,11 +142,40 @@ Reports need inline visuals but there is no UI here. ImageMagick's policy blocks
 PIL instead — read a captured `.txt` of command output and draw it line by line with
 `DejaVuSansMono.ttf`, colouring PASS lines green and ERROR/LEAK lines red.
 
+## Testing the marketing landing on a Vercel preview
+
+The public marketing landing lives at `/app/landing` (the app sets `basePath: "/app"`) and is also
+served at the bare root `/` via a `vercel.json` edge rewrite. It has **no DB dependency** — it can be
+E2E-tested directly against the Vercel preview URL (found in the PR's `vercel[bot]` comment) without
+running Postgres or the local dev server.
+
+**WTR Vercel previews are SSO-protected (Deployment Protection).** The preview root returns
+`302 → vercel.com/sso-api`, so a browser can't reach it as-is. To test through it using `VERCEL_TOKEN`:
+
+```bash
+# projectId prj_d8MJ8eoHBBTKPSBZaaVHoAv004ns, teamId team_PYXAVq4jrHw8k0bNffmhc2jE
+# 1. generate a temporary Protection-Bypass secret
+curl -X PATCH "https://api.vercel.com/v1/projects/$PROJECT_ID/protection-bypass?teamId=$TEAM_ID" \
+  -H "Authorization: Bearer $VERCEL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"generate":{"secret":"<random-32+char>","note":"temp e2e"}}'
+# 2. navigate ONCE with the bypass query params to set the cookie, then browse normally:
+#    <preview-url>/?x-vercel-protection-bypass=<SECRET>&x-vercel-set-bypass-cookie=true
+# 3. ALWAYS revoke afterwards and confirm the root is SSO-gated again (302 → sso-api)
+curl -X PATCH "https://api.vercel.com/v1/projects/$PROJECT_ID/protection-bypass?teamId=$TEAM_ID" \
+  -H "Authorization: Bearer $VERCEL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"revoke":{"secret":"<SECRET>","regenerate":false}}'
+```
+
+Browser-tooling note: the test harness can't reliably emulate `prefers-reduced-motion` before the
+WebGL hero mounts, so that path is inspected in code (`ferrofluid.tsx` draws one static frame then
+cancels the rAF loop) rather than runtime-verified.
+
 ## Devin Secrets Needed
 
 - `WTR_WALLET_PRIVATE_KEY` — Aeneid testnet operator key; required for `npm run bootstrap` and
   `npm run e2e`. Never a mainnet key.
 - `WTR_TRACE_API_KEY` — Trace staging API key (plus a `wtr` provider scope); required for `npm run e2e`.
+- `VERCEL_TOKEN` — only needed to bypass Vercel SSO when E2E-testing a preview deployment (see above).
 
 None are needed for typecheck/lint/test/build, migrations, schema probes, `verify:addresses`, or the
 redaction probe.
