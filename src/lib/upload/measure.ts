@@ -4,6 +4,7 @@
  * numbers are measured here and only the numbers are sent.
  */
 import { ahash64, dhash64, phash64 } from "../labels/perceptual-hash";
+import { withBasePath } from "../base-path";
 import type { Modality } from "./modality";
 
 export interface Measured {
@@ -134,7 +135,7 @@ export async function measureFile(file: File, modality: Modality): Promise<Measu
 export async function submitMeasurements(assetId: string, measured: Measured): Promise<void> {
   const entries = Object.entries(measured).filter(([, value]) => value !== undefined);
   if (entries.length === 0) return;
-  await fetch(`/api/assets/${assetId}/labels/measured`, {
+  await fetch(withBasePath(`/api/assets/${assetId}/labels/measured`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(Object.fromEntries(entries)),
