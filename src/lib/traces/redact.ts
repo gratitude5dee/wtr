@@ -17,6 +17,7 @@
  * reasoning as `src/lib/log.ts`): field names in a third-party trace are
  * open-ended, so the guarantee has to come from matching the value.
  */
+import { MAX_MODEL_CHARS, MAX_TOOL_NAME_CHARS } from "./parse";
 import type { CanonicalTrace, TraceOutcome, TraceRole } from "./parse";
 
 export interface TraceStructure {
@@ -108,8 +109,14 @@ export function validateRedactedTrace(payload: unknown): RedactedTrace {
       throw new RedactionError("redacted preview message has an unknown role");
     }
     const body = typeof message.text === "string" ? message.text : "";
+    // Tool names are client-supplied text like any other field, so they are
+    // scrubbed and clamped too — otherwise they would be a plaintext channel
+    // straight into the provider request body.
     const toolNames = Array.isArray(message.toolNames)
-      ? message.toolNames.filter((name): name is string => typeof name === "string").slice(0, MAX_TOOL_NAMES)
+      ? message.toolNames
+          .filter((name): name is string => typeof name === "string")
+          .slice(0, MAX_TOOL_NAMES)
+          .map((name) => redactText(name).slice(0, MAX_TOOL_NAME_CHARS))
       : [];
     const originalChars = typeof message.originalChars === "number" ? message.originalChars : body.length;
     return {
@@ -122,8 +129,11 @@ export function validateRedactedTrace(payload: unknown): RedactedTrace {
   });
   const outcome = record.outcome;
   return {
-    format: typeof record.format === "string" ? record.format.slice(0, 64) : "unknown",
-    model: typeof record.model === "string" ? record.model.slice(0, 128) : null,
+    format: typeof record.format === "string" ? redactText(record.format).slice(0, 64) : "unknown",
+    model:
+      typeof record.model === "string"
+        ? redactText(record.model).slice(0, MAX_MODEL_CHARS)
+        : null,
     turnCount: typeof record.turnCount === "number" ? Math.max(0, Math.trunc(record.turnCount)) : 0,
     toolCallsCount:
       typeof record.toolCallsCount === "number" ? Math.max(0, Math.trunc(record.toolCallsCount)) : 0,
@@ -145,7 +155,7 @@ export function traceStructure(trace: CanonicalTrace): TraceStructure {
   }
   return {
     format: trace.format,
-    model: trace.model,
+    model: trace.model === null ? null : trace.model.slice(0, MAX_MODEL_CHARS),
     turnCount: trace.turnCount,
     toolCallsCount: trace.toolCallsCount,
     toolNames: [...names].sort(),

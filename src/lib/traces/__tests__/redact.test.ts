@@ -117,6 +117,23 @@ describe("validateRedactedTrace", () => {
     expect(clean.outcome).toBe("unknown");
   });
 
+  it("scrubs and clamps every client-supplied string, not just the body", () => {
+    const clean = validateRedactedTrace({
+      format: "hermes",
+      model: `claude-sonnet-4 dev@example.com`,
+      messages: [
+        {
+          role: "user",
+          text: "hi",
+          toolNames: [`Bash leak dev@example.com ${"c".repeat(400)}`],
+        },
+      ],
+    });
+    const serialized = JSON.stringify(clean);
+    expect(serialized).not.toContain("dev@example.com");
+    expect(clean.messages[0].toolNames[0].length).toBeLessThanOrEqual(128);
+  });
+
   it("rejects a preview that is not a message list", () => {
     expect(() => validateRedactedTrace(null)).toThrow(RedactionError);
     expect(() => validateRedactedTrace({ messages: [] })).toThrow(/no messages/);

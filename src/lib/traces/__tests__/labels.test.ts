@@ -120,6 +120,18 @@ describe("validateTraceStructure", () => {
     expect(() => validateTraceStructure({ ...STRUCTURE, model: 7 })).toThrow(/model/);
     expect(() => validateTraceStructure({ ...STRUCTURE, format: "" })).toThrow(/format/);
   });
+
+  it("accepts anything the parser itself can produce, and clamps the model id", () => {
+    const longName = "t".repeat(128);
+    const clean = validateTraceStructure({
+      ...STRUCTURE,
+      toolNames: [longName],
+      model: "claude-".concat("x".repeat(400)),
+    });
+    expect(clean.toolNames).toEqual([longName]);
+    expect(clean.model?.length).toBe(128);
+    expect(modelFamily(clean.model)).toBe("claude");
+  });
 });
 
 describe("trace judge", () => {

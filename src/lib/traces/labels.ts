@@ -17,6 +17,7 @@ import { TIER2_API_KEY, TIER2_API_URL, TIER2_MODEL } from "../../../config/env";
 import { TIER1_NAMESPACE } from "../labels/tier1";
 import type { LabelInput } from "../pipeline/store";
 
+import { MAX_MODEL_CHARS, MAX_TOOL_NAME_CHARS } from "./parse";
 import type { RedactedTrace, TraceStructure } from "./redact";
 
 /** Trace labels share the `wtr` namespace with tier-1/tier-2 labels. */
@@ -132,8 +133,10 @@ export function validateTraceStructure(payload: unknown): TraceStructure {
   }
   const rawNames = record.toolNames;
   if (!Array.isArray(rawNames)) throw new TraceLabelError("'toolNames' must be an array");
+  // The same limit the parser enforces, so a trace the browser could produce
+  // is never rejected here.
   const toolNames = rawNames.map((name) => {
-    if (typeof name !== "string" || name.length === 0 || name.length > MAX_VALUE_CHARS) {
+    if (typeof name !== "string" || name.length === 0 || name.length > MAX_TOOL_NAME_CHARS) {
       throw new TraceLabelError("each tool name must be a short string");
     }
     return name;
@@ -142,16 +145,15 @@ export function validateTraceStructure(payload: unknown): TraceStructure {
   if (model !== null && model !== undefined && typeof model !== "string") {
     throw new TraceLabelError("'model' must be a string when present");
   }
-  if (typeof model === "string" && model.length > MAX_VALUE_CHARS) {
-    throw new TraceLabelError("'model' is too long");
-  }
   const format = record.format;
   if (typeof format !== "string" || format.length === 0 || format.length > MAX_VALUE_CHARS) {
     throw new TraceLabelError("'format' must be a short string");
   }
   return {
     format,
-    model: typeof model === "string" ? model : null,
+    // Clamped rather than rejected: the model id only feeds `model_family`,
+    // so an unusually long one must not cost the asset all of its labels.
+    model: typeof model === "string" ? model.slice(0, MAX_MODEL_CHARS) : null,
     turnCount: count("turnCount"),
     toolCallsCount: count("toolCallsCount"),
     toolNames,

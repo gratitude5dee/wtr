@@ -54,7 +54,10 @@ const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_MESSAGES = 20_000;
 /** Per-message plaintext we keep; longer bodies are cut before any redaction. */
 const MAX_TEXT_CHARS = 100_000;
-const MAX_TOOL_NAME_CHARS = 128;
+/** Shared with the server-side validator so the two never disagree. */
+export const MAX_TOOL_NAME_CHARS = 128;
+/** Model identifiers are clamped rather than rejected: they are cosmetic. */
+export const MAX_MODEL_CHARS = 128;
 
 const ROLE_ALIASES: Record<string, TraceRole> = {
   system: "system",
