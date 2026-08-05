@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { LABEL_CONFIRM_THRESHOLD } from "../../../../../config/env";
 import { LabelReview } from "@/components/dashboard/label-review";
+import { withBasePath } from "@/lib/base-path";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -101,7 +102,7 @@ export default async function AssetDetailPage({
           {asset.previewUrl ? (
             <p>
               The{" "}
-              <a className="underline" href={asset.previewUrl} target="_blank" rel="noreferrer">
+              <a className="underline" href={withBasePath(asset.previewUrl)} target="_blank" rel="noreferrer">
                 preview
               </a>{" "}
               is public and deliberately degraded — it is not usable as training data.

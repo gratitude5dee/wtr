@@ -169,7 +169,7 @@ export default async function CatalogPage({
                         (item.modality === "image" || item.modality === "video") ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={item.previewUrl}
+                            src={withBasePath(item.previewUrl)}
                             alt=""
                             className="h-full w-full object-cover"
                           />

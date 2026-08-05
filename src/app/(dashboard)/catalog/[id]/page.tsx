@@ -4,6 +4,7 @@ import { BuyCard } from "@/components/dashboard/buy-card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { withBasePath } from "@/lib/base-path";
 import { getCatalogItem, purchaseReadiness } from "@/lib/catalog/service";
 import { formatIp, PRESET_NAME, PRESET_SENTENCE } from "@/lib/dashboard/format";
 import { getCurrentCreator } from "@/lib/dashboard/queries";
@@ -39,7 +40,7 @@ export default async function CatalogItemPage({
       {item.previewUrl && (item.modality === "image" || item.modality === "video") && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={item.previewUrl}
+          src={withBasePath(item.previewUrl)}
           alt=""
           className="w-full rounded-lg border object-cover"
         />
