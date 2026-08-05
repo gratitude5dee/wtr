@@ -45,10 +45,13 @@ export async function withMigrationLock<T>(fn: (sql: Queryable) => Promise<T>): 
       query: (sql, params) => client.query(sql, params ? [...params] : undefined),
     });
   } finally {
+    let unlockError: unknown;
     try {
       await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK_KEY]);
+    } catch (error) {
+      unlockError = error;
     } finally {
-      client.release();
+      client.release(unlockError instanceof Error ? unlockError : undefined);
     }
   }
 }
