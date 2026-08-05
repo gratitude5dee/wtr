@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import { SettingsError, updateCreatorSettings } from "@/lib/settings/service";
 
 export interface SettingsState {
@@ -14,7 +14,7 @@ export async function updateSettingsAction(
   _prev: SettingsState,
   formData: FormData,
 ): Promise<SettingsState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no creator account", saved: false };
 
   try {

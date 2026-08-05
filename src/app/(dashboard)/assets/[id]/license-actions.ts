@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import { LicenseChoiceError, setLicenseChoice } from "@/lib/listing/service";
 
 export interface LicenseChoiceState {
@@ -15,7 +15,7 @@ export async function chooseLicenseAction(
   _prev: LicenseChoiceState,
   formData: FormData,
 ): Promise<LicenseChoiceState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no creator account", saved: false };
 
   const preset = String(formData.get("preset") ?? "");

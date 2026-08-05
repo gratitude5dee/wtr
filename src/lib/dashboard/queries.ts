@@ -5,6 +5,7 @@
  */
 import { cookies } from "next/headers";
 
+import { DEMO_CREATOR } from "../../../config/env";
 import { readSession, SESSION_COOKIE, sessionsEnabled } from "../auth/session";
 import { db, type Queryable } from "../db/pool";
 import { weiFromDb } from "../money";
@@ -29,14 +30,36 @@ export interface CreatorRow {
  * dashboard falls back to the earliest creator row.
  */
 export async function getCurrentCreator(q: Queryable = db): Promise<CreatorRow | null> {
+  return resolveCreator(true, q);
+}
+
+/**
+ * The creator on whose behalf a mutation may run. Unlike `getCurrentCreator`
+ * this never falls back to the `WTR_DEMO_CREATOR` showcase identity, so
+ * signed-out visitors can browse the demo data but cannot modify it.
+ */
+export async function getActingCreator(q: Queryable = db): Promise<CreatorRow | null> {
+  return resolveCreator(false, q);
+}
+
+async function resolveCreator(
+  allowDemo: boolean,
+  q: Queryable,
+): Promise<CreatorRow | null> {
   let where = "ORDER BY created_at ASC LIMIT 1";
   const params: string[] = [];
   if (sessionsEnabled()) {
     const jar = await cookies();
     const session = readSession(jar.get(SESSION_COOKIE)?.value ?? "");
-    if (!session) return null;
-    where = "WHERE id = $1";
-    params.push(session.creatorId);
+    if (session) {
+      where = "WHERE id = $1";
+      params.push(session.creatorId);
+    } else {
+      const demo = allowDemo ? DEMO_CREATOR() : null;
+      if (!demo) return null;
+      where = "WHERE anon_id = $1";
+      params.push(demo);
+    }
   }
   const result = await q.query<{
     id: string;
@@ -97,7 +120,7 @@ export async function getOverviewStats(
   creatorId: string,
   q: Queryable = db,
 ): Promise<OverviewStats> {
-  const [stages, gross, paid] = await Promise.all([
+  const [stages, gross, unpaid] = await Promise.all([
     q.query<{ stage: string; count: string }>(
       `SELECT stage::text AS stage, count(*)::text AS count
        FROM asset WHERE creator_id = $1 GROUP BY stage`,
@@ -110,15 +133,14 @@ export async function getOverviewStats(
     ),
     q.query<{ total: string }>(
       `SELECT coalesce(sum(amount_wei), 0)::text AS total
-       FROM payout WHERE creator_id = $1 AND status <> 'failed'`,
+       FROM payout WHERE creator_id = $1 AND status IN ('pending', 'credited')`,
       [creatorId],
     ),
   ]);
   const byStage = new Map(stages.rows.map((row) => [row.stage, Number(row.count)]));
   const pipelineStages = ["IN_TRAY", "LABELED", "REGISTERED", "FAILED_REGISTER"];
   const grossWei = weiFromDb(gross.rows[0]?.total ?? "0");
-  const paidWei = weiFromDb(paid.rows[0]?.total ?? "0");
-  const claimableWei = grossWei > paidWei ? grossWei - paidWei : 0n;
+  const claimableWei = weiFromDb(unpaid.rows[0]?.total ?? "0");
   return {
     listed: byStage.get("LISTED") ?? 0,
     pipeline: pipelineStages.reduce((sum, stage) => sum + (byStage.get(stage) ?? 0), 0),

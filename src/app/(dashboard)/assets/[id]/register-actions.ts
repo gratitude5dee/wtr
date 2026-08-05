@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import { log } from "@/lib/log";
 import { registerAsset, RegisterError } from "@/lib/register/service";
 
@@ -12,7 +12,7 @@ export interface RegisterState {
 }
 
 export async function registerAssetAction(assetId: string): Promise<RegisterState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no creator account", registered: false };
 
   try {

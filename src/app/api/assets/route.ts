@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 
 import { hasCurrentConsent } from "@/lib/consent/service";
 import { applyTier1Labels, serverTier1Labels } from "@/lib/labels/tier1";
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import { log } from "@/lib/log";
 import { modalityForFilename } from "@/lib/upload/modality";
 import { registerAsset, UploadValidationError } from "@/lib/upload/register-asset";
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) {
     return NextResponse.json({ error: "no creator account" }, { status: 401 });
   }

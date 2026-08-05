@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import {
   closeRequest,
   RequestError,
@@ -19,7 +19,7 @@ export async function submitAssetAction(
   requestId: string,
   assetId: string,
 ): Promise<SubmissionState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no creator account" };
   try {
     await submitAsset(creator.id, requestId, assetId);
@@ -36,7 +36,7 @@ export async function reviewSubmissionAction(
   submissionId: string,
   decision: "accepted" | "rejected",
 ): Promise<SubmissionState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no signed-in account" };
   try {
     await reviewSubmission(creator.id, submissionId, decision);
@@ -49,7 +49,7 @@ export async function reviewSubmissionAction(
 }
 
 export async function closeRequestAction(requestId: string): Promise<SubmissionState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no signed-in account" };
   try {
     await closeRequest(creator.id, requestId);
@@ -65,7 +65,7 @@ export async function withdrawSubmissionAction(
   requestId: string,
   assetId: string,
 ): Promise<SubmissionState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no creator account" };
   try {
     await withdrawSubmission(creator.id, requestId, assetId);

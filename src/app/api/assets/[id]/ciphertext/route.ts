@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import { log } from "@/lib/log";
 import {
   appendChunk,
@@ -17,7 +17,7 @@ type Context = { params: Promise<{ id: string }> };
 /** Resume point: the client asks where to continue after a tab close or drop. */
 export async function GET(_request: NextRequest, context: Context): Promise<NextResponse> {
   const { id } = await context.params;
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return NextResponse.json({ error: "no creator account" }, { status: 401 });
   try {
     return NextResponse.json(await uploadStatus(creator.id, id));
@@ -33,7 +33,7 @@ export async function GET(_request: NextRequest, context: Context): Promise<Next
  */
 export async function PUT(request: NextRequest, context: Context): Promise<NextResponse> {
   const { id } = await context.params;
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return NextResponse.json({ error: "no creator account" }, { status: 401 });
 
   try {

@@ -70,6 +70,13 @@ export const LOG_LEVEL = () => optional("WTR_LOG_LEVEL", "info");
  */
 export const SESSION_SECRET = () => process.env.WTR_SESSION_SECRET || null;
 
+/**
+ * anon_id of a seeded demo creator shown to signed-out visitors. When set,
+ * the dashboard renders this creator's (clearly demo) data instead of asking
+ * for sign-in; signing in with a wallet always takes precedence.
+ */
+export const DEMO_CREATOR = () => process.env.WTR_DEMO_CREATOR || null;
+
 /** thirdweb client id (public). Wallet login needs this plus the secret above. */
 export const THIRDWEB_CLIENT_ID = () => process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || null;
 

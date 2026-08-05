@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import { toWei } from "@/lib/money";
 import { createRequest, RequestError } from "@/lib/requests/service";
 
@@ -14,7 +14,7 @@ export async function createRequestAction(
   _prev: NewRequestState,
   formData: FormData,
 ): Promise<NewRequestState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no signed-in account" };
 
   let requestId: string;

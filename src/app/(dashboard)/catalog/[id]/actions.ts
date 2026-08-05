@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { CatalogError, purchaseAsset } from "@/lib/catalog/service";
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import { log } from "@/lib/log";
 
 export interface PurchaseState {
@@ -12,7 +12,7 @@ export interface PurchaseState {
 }
 
 export async function purchaseAction(assetId: string): Promise<PurchaseState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no signed-in account", settled: false };
 
   try {

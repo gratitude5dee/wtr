@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentCreator } from "@/lib/dashboard/queries";
+import { getActingCreator } from "@/lib/dashboard/queries";
 import { TakedownError, withdrawAsset } from "@/lib/takedown/service";
 
 export interface TakedownState {
@@ -15,7 +15,7 @@ export async function withdrawAssetAction(
   _prev: TakedownState,
   formData: FormData,
 ): Promise<TakedownState> {
-  const creator = await getCurrentCreator();
+  const creator = await getActingCreator();
   if (!creator) return { error: "no creator account", done: false };
 
   const reason = String(formData.get("reason") ?? "");
