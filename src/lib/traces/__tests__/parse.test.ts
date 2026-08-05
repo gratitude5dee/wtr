@@ -139,6 +139,23 @@ describe("parseTrace", () => {
     expect(() => parseTrace(mixed)).toThrow(/mixes formats/);
   });
 
+  it("names the real file line when rejecting a mixed export", () => {
+    const mixed = ["", CLAUDE_CODE, "", CODEX].join("\n");
+    const codexLine = mixed.split("\n").findIndex((line) => line.includes("turn_context")) + 1;
+    expect(() => parseTrace(mixed)).toThrow(new RegExp(`line ${codexLine} looks like codex`));
+  });
+
+  it("accepts a single-tool export whose records carry an extra marker-shaped field", () => {
+    const openclaw = [
+      { event: "message", role: "user", content: "run the suite" },
+      { event: "tool_call", tool: "bash", payload: { cmd: "npm test" } },
+      { event: "message", role: "assistant", content: "green" },
+    ]
+      .map((line) => JSON.stringify(line))
+      .join("\n");
+    expect(parseTrace(openclaw).format).toBe("openclaw");
+  });
+
   it("rejects a JSONL line that is not an object", () => {
     expect(() => parseTrace('{"event":"message","role":"user","content":"hi"}\n"bare string"')).toThrow(
       /line 2 is not a JSON object/,

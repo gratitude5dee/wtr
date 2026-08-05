@@ -107,10 +107,16 @@ function toolName(value: unknown): string | null {
   return name;
 }
 
+interface SourcedRecord {
+  record: Record<string, unknown>;
+  /** 1-based position in the file, which blank lines make differ from the index. */
+  line: number;
+}
+
 /** JSONL reader: every non-blank line must be a complete JSON object. */
-function parseLines(raw: string): Record<string, unknown>[] {
+function parseSourcedLines(raw: string): SourcedRecord[] {
   const lines = raw.split("\n");
-  const records: Record<string, unknown>[] = [];
+  const records: SourcedRecord[] = [];
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index].trim();
     if (!line) continue;
@@ -124,13 +130,17 @@ function parseLines(raw: string): Record<string, unknown>[] {
     if (!record) {
       throw new TraceParseError(`line ${index + 1} is not a JSON object`);
     }
-    records.push(record);
+    records.push({ record, line: index + 1 });
     if (records.length > MAX_MESSAGES) {
       throw new TraceParseError(`trace has more than ${MAX_MESSAGES} records`);
     }
   }
   if (records.length === 0) throw new TraceParseError("trace contains no records");
   return records;
+}
+
+function parseLines(raw: string): Record<string, unknown>[] {
+  return parseSourcedLines(raw).map((sourced) => sourced.record);
 }
 
 // ---------------------------------------------------------------------------
@@ -168,8 +178,9 @@ function isOpenClaw(records: readonly Record<string, unknown>[]): boolean {
  * it carries no marker at all (an evolving export's bookkeeping line).
  */
 function recordFormat(record: Record<string, unknown>): TraceFormat | null {
-  if (asRecord(record.message) !== null) return "claude_code";
-  if (asRecord(record.payload) !== null) return "codex";
+  const typed = typeof record.type === "string";
+  if (typed && asRecord(record.message) !== null) return "claude_code";
+  if (typed && asRecord(record.payload) !== null) return "codex";
   if (typeof record.event === "string") return "openclaw";
   return null;
 }
@@ -179,15 +190,12 @@ function recordFormat(record: Record<string, unknown>): TraceFormat | null {
  * mixed export parses as whichever format was detected first and silently
  * drops every foreign record, yielding confident but wrong counts.
  */
-function assertSingleFormat(
-  format: TraceFormat,
-  records: readonly Record<string, unknown>[],
-): void {
-  for (const [index, record] of records.entries()) {
+function assertSingleFormat(format: TraceFormat, records: readonly SourcedRecord[]): void {
+  for (const { record, line } of records) {
     const found = recordFormat(record);
     if (found !== null && found !== format) {
       throw new TraceParseError(
-        `trace mixes formats: line ${index + 1} looks like ${found}, not ${format}`,
+        `trace mixes formats: line ${line} looks like ${found}, not ${format}`,
       );
     }
   }
@@ -452,8 +460,9 @@ export function parseTrace(raw: string): CanonicalTrace {
   if (raw.length > MAX_BYTES) throw new TraceParseError("trace is larger than 8MB");
   const format = detectTraceFormat(raw);
   if (format === "hermes") return fromHermes(raw);
-  const records = parseLines(raw);
-  assertSingleFormat(format, records);
+  const sourced = parseSourcedLines(raw);
+  assertSingleFormat(format, sourced);
+  const records = sourced.map((entry) => entry.record);
   if (format === "claude_code") return fromClaudeCode(records);
   if (format === "codex") return fromCodex(records);
   return fromOpenClaw(records);
