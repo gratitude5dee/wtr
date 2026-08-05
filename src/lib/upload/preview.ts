@@ -5,6 +5,8 @@
  * usable as training data.
  */
 
+import { withBasePath } from "../base-path";
+
 const MAX_EDGE = 512;
 const JPEG_QUALITY = 0.5;
 
@@ -34,7 +36,7 @@ export async function makeImagePreview(file: File): Promise<Blob | null> {
 }
 
 export async function uploadPreview(assetId: string, preview: Blob): Promise<void> {
-  const response = await fetch(`/api/assets/${assetId}/preview`, {
+  const response = await fetch(withBasePath(`/api/assets/${assetId}/preview`), {
     method: "PUT",
     headers: { "Content-Type": "image/jpeg" },
     body: preview,

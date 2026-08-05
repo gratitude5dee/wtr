@@ -14,6 +14,7 @@ import {
   STAGE_TINT,
 } from "@/lib/dashboard/format";
 import { getCurrentCreator, listAssets } from "@/lib/dashboard/queries";
+import { withBasePath } from "@/lib/base-path";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -99,7 +100,7 @@ export default async function AssetsPage({
             );
           })}
         </div>
-        <form action="/assets" className="flex items-center gap-2">
+        <form action={withBasePath("/assets")} className="flex items-center gap-2">
           {stage && <input type="hidden" name="stage" value={stage} />}
           <Input
             type="search"

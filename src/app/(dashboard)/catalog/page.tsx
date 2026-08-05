@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { listCatalog } from "@/lib/catalog/service";
+import { withBasePath } from "@/lib/base-path";
 import { formatIp, PRESET_NAME, PRESET_SENTENCE } from "@/lib/dashboard/format";
 import { cn } from "@/lib/utils";
 
@@ -85,7 +86,7 @@ export default async function CatalogPage({
 
       <div className="grid items-start gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="space-y-5 rounded-xl border bg-card p-4">
-          <form action="/catalog">
+          <form action={withBasePath("/catalog")}>
             {filters.modality && (
               <input type="hidden" name="modality" value={filters.modality} />
             )}

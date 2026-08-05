@@ -15,6 +15,7 @@ import {
   generateFileKey,
   importFileKey,
 } from "./encrypt";
+import { withBasePath } from "../base-path";
 
 const KEY_PREFIX = "wtr-filekey-v1:";
 
@@ -50,7 +51,7 @@ export async function uploadEncrypted(
   const { key, meta } = await keyForAsset(assetId);
   const totalCipherBytes = ciphertextSize(file.size);
 
-  const statusResponse = await fetch(`/api/assets/${assetId}/ciphertext`);
+  const statusResponse = await fetch(withBasePath(`/api/assets/${assetId}/ciphertext`));
   if (!statusResponse.ok) throw new Error("could not read upload status");
   const status = (await statusResponse.json()) as UploadStatus;
   if (status.complete) {
@@ -90,7 +91,7 @@ export async function uploadEncrypted(
       headers["x-upload-total-bytes"] = String(totalCipherBytes);
       headers["x-upload-chunk-bytes"] = String(sealedChunkBytes);
     }
-    const response = await fetch(`/api/assets/${assetId}/ciphertext`, {
+    const response = await fetch(withBasePath(`/api/assets/${assetId}/ciphertext`), {
       method: "PUT",
       headers,
       body: sealed as unknown as BodyInit,

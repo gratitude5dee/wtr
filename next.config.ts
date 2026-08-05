@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  basePath: "/app",
   webpack: (config) => {
     // thirdweb → @base-org/account → @coinbase/cdp-sdk declares optional
     // @x402/* payment deps that are not published for bundlers; WTR never

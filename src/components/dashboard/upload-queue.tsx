@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { uploadEncrypted } from "@/lib/upload/encrypted-uploader";
+import { withBasePath } from "@/lib/base-path";
 import { measureFile, submitMeasurements } from "@/lib/upload/measure";
 import { ACCEPT_ATTRIBUTE, modalityForFilename } from "@/lib/upload/modality";
 import { makeImagePreview, uploadPreview } from "@/lib/upload/preview";
@@ -93,7 +94,7 @@ export function UploadQueue() {
     async (id: string, file: File, contentSha256: string) => {
       patch(id, { status: "registering", contentSha256 });
       try {
-        const response = await fetch("/api/assets", {
+        const response = await fetch(withBasePath("/api/assets"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
