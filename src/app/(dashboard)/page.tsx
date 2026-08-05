@@ -63,9 +63,17 @@ export default async function OverviewPage() {
         title="Where everything stands"
         description="Your work, its pipeline, and what it has earned."
         actions={
-          <Button asChild size="sm">
-            <Link href="/upload">Upload</Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="sm" variant="secondary">
+              <Link href="/upload?tour=creator">Creator/Distributor walkthrough</Link>
+            </Button>
+            <Button asChild size="sm" variant="secondary">
+              <Link href="/requests?tour=buyer">Data Buyer walkthrough</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/upload">Upload</Link>
+            </Button>
+          </div>
         }
       />
 

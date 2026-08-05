@@ -46,7 +46,10 @@ async function resolveCreator(
   allowDemo: boolean,
   q: Queryable,
 ): Promise<CreatorRow | null> {
-  let where = "ORDER BY created_at ASC LIMIT 1";
+  // Local-dev fallback: the account with work in it, so seeded lab identities
+  // (which own no assets) never stand in for the creator being previewed.
+  let where = `ORDER BY (SELECT count(*) FROM asset a WHERE a.creator_id = creator.id) DESC,
+               created_at ASC LIMIT 1`;
   const params: string[] = [];
   if (sessionsEnabled()) {
     const jar = await cookies();
@@ -555,6 +558,11 @@ export interface DataRequestRow {
   unitPriceWei: bigint | null;
   kycRequired: boolean;
   deadline: Date | null;
+  fundingMode: string;
+  depositWei: bigint | null;
+  amountPaidWei: bigint;
+  dataShape: Record<string, string> | null;
+  specialInstructions: string | null;
   modality: string | null;
   notes: string | null;
   status: string;
@@ -576,6 +584,11 @@ export async function listDataRequests(
     unit_price_wei: string | null;
     kyc_required: boolean;
     deadline: Date | null;
+    funding_mode: string;
+    deposit_wei: string | null;
+    amount_paid_wei: string;
+    data_shape: Record<string, string> | null;
+    special_instructions: string | null;
     modality: string | null;
     notes: string | null;
     status: string;
@@ -585,6 +598,9 @@ export async function listDataRequests(
   }>(
     `SELECT r.id, r.title, r.requester_anon_id, r.license_preset, r.budget_wei::text AS budget_wei,
             r.unit_price_wei::text AS unit_price_wei, r.kyc_required, r.deadline,
+            r.funding_mode, r.deposit_wei::text AS deposit_wei,
+            r.amount_paid_wei::text AS amount_paid_wei, r.data_shape,
+            r.special_instructions,
             r.spec->>'modality' AS modality, r.spec->>'notes' AS notes,
             r.status, r.created_at,
             count(s.id) FILTER (WHERE a.creator_id = $1)::text AS my_submissions,
@@ -604,6 +620,11 @@ export async function listDataRequests(
     unitPriceWei: row.unit_price_wei === null ? null : weiFromDb(row.unit_price_wei),
     kycRequired: row.kyc_required,
     deadline: row.deadline,
+    fundingMode: row.funding_mode,
+    depositWei: row.deposit_wei === null ? null : weiFromDb(row.deposit_wei),
+    amountPaidWei: weiFromDb(row.amount_paid_wei),
+    dataShape: row.data_shape,
+    specialInstructions: row.special_instructions,
     modality: row.modality,
     notes: row.notes,
     status: row.status,
@@ -611,6 +632,72 @@ export async function listDataRequests(
     mySubmissions: Number(row.my_submissions),
     totalSubmissions: Number(row.total_submissions),
   }));
+}
+
+export interface PayoutSummaryBucket {
+  key: string;
+  totalWei: bigint;
+  count: number;
+}
+
+export interface PayoutSummary {
+  paidWei: bigint;
+  pendingWei: bigint;
+  byStatus: PayoutSummaryBucket[];
+  byRail: PayoutSummaryBucket[];
+  /** The oldest payout still owed — the one settling next. */
+  nextPayout: { amountWei: bigint; rail: string; status: string; createdAt: Date } | null;
+}
+
+/** Per-status and per-rail totals behind the payouts page's stat cards. */
+export async function getPayoutSummary(
+  creatorId: string,
+  q: Queryable = db,
+): Promise<PayoutSummary> {
+  const [byStatus, byRail, next] = await Promise.all([
+    q.query<{ key: string; total: string; count: string }>(
+      `SELECT status AS key, sum(amount_wei)::text AS total, count(*)::text AS count
+       FROM payout WHERE creator_id = $1 GROUP BY status ORDER BY status`,
+      [creatorId],
+    ),
+    q.query<{ key: string; total: string; count: string }>(
+      `SELECT rail AS key, sum(amount_wei)::text AS total, count(*)::text AS count
+       FROM payout WHERE creator_id = $1 GROUP BY rail ORDER BY rail`,
+      [creatorId],
+    ),
+    q.query<{ amount_wei: string; rail: string; status: string; created_at: Date }>(
+      `SELECT amount_wei::text AS amount_wei, rail, status, created_at
+       FROM payout WHERE creator_id = $1 AND status IN ('pending', 'credited')
+       ORDER BY created_at ASC LIMIT 1`,
+      [creatorId],
+    ),
+  ]);
+  const buckets = (rows: { key: string; total: string; count: string }[]) =>
+    rows.map((row) => ({
+      key: row.key,
+      totalWei: weiFromDb(row.total),
+      count: Number(row.count),
+    }));
+  const statusBuckets = buckets(byStatus.rows);
+  const totalFor = (statuses: string[]) =>
+    statusBuckets
+      .filter((bucket) => statuses.includes(bucket.key))
+      .reduce((sum, bucket) => sum + bucket.totalWei, 0n);
+  const nextRow = next.rows[0];
+  return {
+    paidWei: totalFor(["paid"]),
+    pendingWei: totalFor(["pending", "credited"]),
+    byStatus: statusBuckets,
+    byRail: buckets(byRail.rows),
+    nextPayout: nextRow
+      ? {
+          amountWei: weiFromDb(nextRow.amount_wei),
+          rail: nextRow.rail,
+          status: nextRow.status,
+          createdAt: nextRow.created_at,
+        }
+      : null,
+  };
 }
 
 export interface RecentActivityRow {

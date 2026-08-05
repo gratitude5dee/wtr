@@ -5,7 +5,11 @@ import { closeRequest, createRequest, eligibleAssets, getRequest, RequestError }
 
 function fakeQueryable(rows: Record<string, unknown>[]): Queryable {
   return {
-    query: async <T>() => ({ rows: rows as T[], rowCount: rows.length }),
+    query: async <T>(text: string) => {
+      // createRequest checks the verified-lab gate before inserting.
+      const result = text.includes("lab_verified") ? [{ lab_verified: true }] : rows;
+      return { rows: result as T[], rowCount: result.length };
+    },
   } as Queryable;
 }
 
@@ -61,6 +65,11 @@ const validInput = {
   unitPriceWei: null,
   kycRequired: false,
   deadline: null,
+  fundingMode: "none" as const,
+  depositWei: null,
+  amountPaidWei: 0n,
+  dataShape: null,
+  specialInstructions: null,
 };
 
 describe("createRequest", () => {
@@ -77,6 +86,12 @@ describe("createRequest", () => {
     [{ unitPriceWei: -1n }, /per-item price/],
     [{ deadline: new Date(Date.now() - 1000) }, /deadline/],
     [{ deadline: new Date("not-a-date") }, /valid deadline/],
+    [{ fundingMode: "deposit" as const, depositWei: 1n, amountPaidWei: 1n }, /at least 10%/],
+    [
+      { fundingMode: "full" as const, amountPaidWei: 24n * 10n ** 18n },
+      /exactly the budget/,
+    ],
+    [{ amountPaidWei: 1n }, /unfunded/],
   ] as const)("rejects bad input %#", async (patch, message) => {
     await expect(
       createRequest(requester, { ...validInput, ...patch }, fakeQueryable([{ id: "req-1" }])),

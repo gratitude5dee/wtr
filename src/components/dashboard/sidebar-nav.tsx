@@ -8,6 +8,8 @@ import {
   LibraryBig,
   Settings,
   Upload,
+  UploadCloud,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,8 +23,10 @@ const SECTIONS = [
     items: [
       { href: "/", label: "Overview", icon: LayoutDashboard },
       { href: "/upload", label: "Upload", icon: Upload },
+      { href: "/upload/bulk", label: "Bulk upload", icon: UploadCloud },
       { href: "/assets", label: "Assets", icon: FolderOpen, count: "assets" as const },
       { href: "/earnings", label: "Earnings", icon: Coins },
+      { href: "/payouts", label: "Payouts", icon: Wallet },
     ],
   },
   {
@@ -61,6 +65,7 @@ export function SidebarNav({ counts }: { counts?: NavCounts }) {
                   key={href}
                   href={href}
                   title={label}
+                  data-tour={`nav-${href === "/" ? "overview" : href.slice(1).replaceAll("/", "-")}`}
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                     active

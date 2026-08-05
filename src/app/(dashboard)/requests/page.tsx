@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DitherAvatar } from "@/components/dither-kit/avatar";
-import { formatIp, PRESET_NAME } from "@/lib/dashboard/format";
+import { formatIp, fundingLabel, PRESET_NAME } from "@/lib/dashboard/format";
 import { getCurrentCreator, listDataRequests } from "@/lib/dashboard/queries";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function RequestsPage() {
         title="Lab data requests"
         description="Briefs from labs — answer them with work already listed under matching terms."
         actions={
-          <Button asChild size="sm">
+          <Button asChild size="sm" data-tour="requests-new">
             <Link href="/requests/new">Post a request</Link>
           </Button>
         }
@@ -42,7 +42,7 @@ export default async function RequestsPage() {
           show up here.
         </p>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2" data-tour="requests-list">
           {requests.map((request) => {
             const target =
               request.unitPriceWei && request.unitPriceWei > 0n
@@ -96,6 +96,20 @@ export default async function RequestsPage() {
                     <Badge variant="secondary" className="text-[10px]">
                       {PRESET_NAME[request.licensePreset] ?? request.licensePreset}
                     </Badge>
+                    <Badge
+                      variant="outline"
+                      className={
+                        request.fundingMode === "none"
+                          ? "text-[10px] text-muted-foreground"
+                          : "border-transparent bg-[rgb(var(--tint-green)/0.12)] text-[10px] text-[rgb(var(--tint-green))]"
+                      }
+                    >
+                      {fundingLabel(
+                        request.fundingMode,
+                        request.budgetWei,
+                        request.amountPaidWei,
+                      )}
+                    </Badge>
                     {request.kycRequired && (
                       <Badge
                         variant="outline"
@@ -122,6 +136,21 @@ export default async function RequestsPage() {
                       <div className="font-mono">{formatIp(request.budgetWei)}</div>
                     </div>
                   </div>
+
+                  {request.dataShape && Object.keys(request.dataShape).length > 0 && (
+                    <div className="font-mono text-[11px] text-muted-foreground">
+                      shape:{" "}
+                      {Object.entries(request.dataShape)
+                        .map(([field, type]) => `${field}: ${type}`)
+                        .join(" · ")}
+                    </div>
+                  )}
+
+                  {request.specialInstructions && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                      {request.specialInstructions}
+                    </p>
+                  )}
 
                   {matchedPct !== null && (
                     <div className="space-y-1">

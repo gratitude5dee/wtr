@@ -71,6 +71,20 @@ export const PRESET_NAME: Record<string, string> = {
   "WTR-NO-TRAIN": "Reference only, never train",
 };
 
+/** Funding state of a lab request, in the creator's words. */
+export function fundingLabel(
+  fundingMode: string,
+  budgetWei: bigint,
+  amountPaidWei: bigint,
+): string {
+  if (fundingMode === "full") return "Fully funded";
+  if (fundingMode === "deposit") {
+    const pct = budgetWei > 0n ? Number((amountPaidWei * 100n) / budgetWei) : 0;
+    return `Funded ${pct}%`;
+  }
+  return "Unfunded";
+}
+
 export function formatIp(amountWei: bigint): string {
   return `${formatWei(amountWei)} ${NATIVE_CURRENCY.symbol}`;
 }
