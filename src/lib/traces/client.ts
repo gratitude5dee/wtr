@@ -6,12 +6,16 @@
  */
 import { withBasePath } from "../base-path";
 
-import { parseTrace } from "./parse";
+import { MAX_BYTES, parseTrace, TraceParseError } from "./parse";
 import { redactTrace, traceStructure } from "./redact";
 import type { TraceJobSpec } from "./job-types";
 
 /** Parses a trace file and derives everything the server is allowed to see. */
 export async function buildTraceSpec(file: File): Promise<TraceJobSpec> {
+  // Checked before reading: `file.text()` would otherwise materialise the whole
+  // export (in UTF-16) just to have `parseTrace` reject it, and bulk upload
+  // runs several of these at once.
+  if (file.size > MAX_BYTES) throw new TraceParseError("trace is larger than 8MB");
   const trace = parseTrace(await file.text());
   return { structure: traceStructure(trace), preview: redactTrace(trace) };
 }

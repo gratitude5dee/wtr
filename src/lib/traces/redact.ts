@@ -52,7 +52,8 @@ export interface RedactedTrace {
 /** How much of a trace a judge is allowed to see. */
 export const MAX_PREVIEW_MESSAGES = 40;
 export const MAX_PREVIEW_CHARS = 400;
-const MAX_TOOL_NAMES = 64;
+/** Distinct tool names a structure or preview message may carry. */
+export const MAX_TOOL_NAMES = 64;
 
 /**
  * Shape-based scrubbers, applied in order. Each replaces the matched span
