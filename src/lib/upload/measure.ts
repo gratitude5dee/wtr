@@ -14,6 +14,8 @@ export interface Measured {
   ahash64?: string;
   dhash64?: string;
   phash64?: string;
+  /** True capture moment, as far as the file itself reveals it. */
+  captured_at?: string;
 }
 
 type Drawable = ImageBitmap | HTMLVideoElement;
@@ -122,13 +124,28 @@ function measureMediaElement(file: File, kind: "audio" | "video"): Promise<Measu
 /** Returns null when the modality has nothing measurable in a browser. */
 export async function measureFile(file: File, modality: Modality): Promise<Measured | null> {
   try {
-    if (modality === "image") return await measureImage(file);
-    if (modality === "audio") return await measureMediaElement(file, "audio");
-    if (modality === "video") return await measureMediaElement(file, "video");
-    return null; // 3D and motion need format-specific parsers — a later tier.
+    const measured = await (async (): Promise<Measured | null> => {
+      if (modality === "image") return await measureImage(file);
+      if (modality === "audio") return await measureMediaElement(file, "audio");
+      if (modality === "video") return await measureMediaElement(file, "video");
+      return null; // 3D and motion need format-specific parsers — a later tier.
+    })();
+    const capturedAt = fileCapturedAt(file);
+    if (!capturedAt) return measured;
+    return { ...(measured ?? {}), captured_at: capturedAt };
   } catch {
     return null;
   }
+}
+
+/**
+ * The file's modification time is the closest thing the browser can see to the
+ * capture moment. A future timestamp means a wrong device clock, not a capture.
+ */
+function fileCapturedAt(file: File): string | undefined {
+  if (!Number.isFinite(file.lastModified) || file.lastModified <= 0) return undefined;
+  if (file.lastModified > Date.now()) return undefined;
+  return new Date(file.lastModified).toISOString();
 }
 
 /** Best-effort: a failed measurement must never fail the upload. */

@@ -279,6 +279,7 @@ export async function exportSnapshot(
     ? await loadTraceDocuments(
         members.map((member) => member.assetId),
         q,
+        dataset.id,
       )
     : [];
   return buildExport(template, { dataset, snapshot, members, preferencePairs, traceDocuments });
@@ -288,12 +289,15 @@ export async function exportSnapshot(
 async function loadTraceDocuments(
   assetIds: readonly string[],
   q: Queryable,
+  collectionId: string,
 ): Promise<TraceDocument[]> {
   const store = new PgAssetStore(q);
   const documents: TraceDocument[] = [];
   for (const assetId of assetIds) {
     try {
-      documents.push(await buildTraceDocument(store, assetId));
+      documents.push(
+        await buildTraceDocument(store, assetId, { asset: { collection_id: collectionId } }),
+      );
     } catch {
       // An asset whose creator/consent rows are incomplete is simply omitted
       // from the provenance section; its membership row still lists its hash.

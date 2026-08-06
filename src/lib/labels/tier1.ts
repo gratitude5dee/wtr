@@ -55,6 +55,13 @@ const MEASURED_KEYS: Record<string, { min: number; max: number; integer: boolean
 /** 64-bit perceptual hashes, sent as 16 lowercase hex characters. */
 const HASH_KEYS = new Set(["ahash64", "dhash64", "phash64"]);
 
+/**
+ * When the content was captured, as reported by the file's own modification
+ * time. Normalised to an ISO-8601 UTC instant and never allowed to be in the
+ * future, so a wrong device clock cannot invent a capture moment.
+ */
+const CAPTURED_AT_KEY = "captured_at";
+
 /** Bad input, safe to echo to the caller. */
 export class MeasuredLabelError extends Error {}
 
@@ -72,6 +79,23 @@ export function validateMeasuredLabels(payload: unknown): LabelInput[] {
         namespace: TIER1_NAMESPACE,
         key,
         value,
+        source: "model",
+        confidence: 1,
+      });
+      continue;
+    }
+    if (key === CAPTURED_AT_KEY) {
+      const captured = typeof value === "string" ? new Date(value) : new Date(NaN);
+      if (Number.isNaN(captured.getTime())) {
+        throw new MeasuredLabelError(`'${key}' must be an ISO-8601 timestamp`);
+      }
+      if (captured.getTime() > Date.now()) {
+        throw new MeasuredLabelError(`'${key}' must not be in the future`);
+      }
+      labels.push({
+        namespace: TIER1_NAMESPACE,
+        key,
+        value: captured.toISOString(),
         source: "model",
         confidence: 1,
       });

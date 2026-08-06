@@ -28,11 +28,20 @@ export interface CreatorRow {
   id: string;
   anonId: string;
   kycStatus: "unverified" | "pending" | "verified" | "failed";
+  /** ISO 3166-1 alpha-2. Country granularity only — never a finer location. */
+  kycCountry?: string | null;
+  taxStatus?: "not_submitted" | "submitted" | "verified";
+  /** Whether a wallet has proven control of this account. Never the address. */
+  walletVerified?: boolean;
 }
 
 export interface ConsentRow {
   documentVersion: string;
   documentSha256: string;
+  documentUri?: string | null;
+  privacyVersion?: string | null;
+  privacySha256?: string | null;
+  privacyUri?: string | null;
   scopes: Record<string, boolean>;
   acceptedAt: Date;
 }

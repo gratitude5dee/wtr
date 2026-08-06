@@ -44,6 +44,23 @@ export const TRACE_MODE = (): "live" | "mock" => {
 export const TRACE_PROVIDER = () => optional("WTR_TRACE_PROVIDER", "wtr");
 
 /**
+ * Attestation of trace-v1.0 payloads. `WTR_TRACE_ATTESTATION_KEY_ID` alone
+ * turns the `attestation` block on (hash + key id, unsigned — enough for
+ * staging); adding the private key makes the signature real. The key is read
+ * here and never logged or persisted (goal.md §12).
+ */
+export const TRACE_ATTESTATION_KEY_ID = () => process.env.WTR_TRACE_ATTESTATION_KEY_ID || null;
+export const TRACE_ATTESTATION_KEY_URL = () => process.env.WTR_TRACE_ATTESTATION_KEY_URL || null;
+export const TRACE_ATTESTATION_KEY = () => {
+  const key = process.env.WTR_TRACE_ATTESTATION_KEY;
+  if (!key) return null;
+  return (key.startsWith("0x") ? key : `0x${key}`) as `0x${string}`;
+};
+
+/** Legal entity behind the platform, reported as `app.legal_entity`. */
+export const TRACE_LEGAL_ENTITY = () => optional("WTR_TRACE_LEGAL_ENTITY", "WTR");
+
+/**
  * Story-API REST base URL used by `@piplabs/cdr-sdk` to read DKG partial
  * decryptions (the CDR read path). This is NOT the EVM JSON-RPC endpoint.
  */

@@ -164,19 +164,41 @@ export class PgAssetStore implements AssetStore {
       id: string;
       anon_id: string;
       kyc_status: CreatorRow["kycStatus"];
-    }>("SELECT id, anon_id, kyc_status FROM creator WHERE id = $1", [creatorId]);
+      kyc_country: string | null;
+      tax_status: NonNullable<CreatorRow["taxStatus"]>;
+      wallet_verified: boolean;
+    }>(
+      `SELECT id, anon_id, kyc_status, kyc_country, tax_status,
+              wallet_address IS NOT NULL AS wallet_verified
+         FROM creator WHERE id = $1`,
+      [creatorId],
+    );
     const row = rows[0];
-    return row ? { id: row.id, anonId: row.anon_id, kycStatus: row.kyc_status } : null;
+    return row
+      ? {
+          id: row.id,
+          anonId: row.anon_id,
+          kycStatus: row.kyc_status,
+          kycCountry: row.kyc_country,
+          taxStatus: row.tax_status,
+          walletVerified: row.wallet_verified,
+        }
+      : null;
   }
 
   async getLatestConsent(creatorId: string): Promise<ConsentRow | null> {
     const { rows } = await this.sql.query<{
       document_version: string;
       document_sha256: string;
+      document_uri: string | null;
+      privacy_version: string | null;
+      privacy_sha256: string | null;
+      privacy_uri: string | null;
       scopes: Record<string, boolean>;
       accepted_at: Date;
     }>(
-      `SELECT document_version, document_sha256, scopes, accepted_at
+      `SELECT document_version, document_sha256, document_uri,
+              privacy_version, privacy_sha256, privacy_uri, scopes, accepted_at
          FROM consent_acceptance
         WHERE creator_id = $1 AND revoked_at IS NULL
         ORDER BY accepted_at DESC
@@ -188,6 +210,10 @@ export class PgAssetStore implements AssetStore {
       ? {
           documentVersion: row.document_version,
           documentSha256: row.document_sha256,
+          documentUri: row.document_uri,
+          privacyVersion: row.privacy_version,
+          privacySha256: row.privacy_sha256,
+          privacyUri: row.privacy_uri,
           scopes: row.scopes,
           acceptedAt: row.accepted_at,
         }
