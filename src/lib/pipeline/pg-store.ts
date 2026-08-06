@@ -168,8 +168,10 @@ export class PgAssetStore implements AssetStore {
       tax_status: NonNullable<CreatorRow["taxStatus"]>;
       wallet_verified: boolean;
     }>(
+      // Verification comes from the SIWE stamp only: a `wallet_address` is
+      // self-declared in settings and is never proof of key possession.
       `SELECT id, anon_id, kyc_status, kyc_country, tax_status,
-              wallet_address IS NOT NULL AS wallet_verified
+              wallet_verified_at IS NOT NULL AS wallet_verified
          FROM creator WHERE id = $1`,
       [creatorId],
     );

@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import type { LoginPayload, VerifyLoginPayloadParams } from "thirdweb/auth";
 
-import { creatorIdForWallet } from "@/lib/auth/service";
+import { creatorIdForWallet, markWalletVerified } from "@/lib/auth/service";
 import {
   issueNonce,
   issuePendingWallet,
@@ -64,6 +64,9 @@ export async function login(
   const wallet = result.payload.address.toLowerCase();
   const creatorId = await creatorIdForWallet(wallet);
   if (creatorId !== null) {
+    // The signature just proved control of this address; that is the only
+    // thing that may set the verification stamp.
+    await markWalletVerified(creatorId, wallet);
     jar.set(SESSION_COOKIE, issueSession(creatorId, wallet), {
       ...COOKIE_BASE,
       maxAge: 7 * 24 * 60 * 60,

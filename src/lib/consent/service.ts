@@ -98,14 +98,21 @@ export async function acceptCurrentConsent(creatorId: string, q?: Queryable): Pr
 export async function createCreatorWithConsent(input: {
   displayName: string;
   walletAddress?: string;
+  /** True only when the address came from a completed SIWE verification. */
+  walletVerified?: boolean;
 }): Promise<string> {
   const anonId = `anon-${crypto.randomUUID().slice(0, 12)}`;
   // One transaction: an account must never exist without its consent row.
   return withTransaction(async (tx) => {
     const created = await tx.query<{ id: string }>(
-      `INSERT INTO creator (anon_id, display_name, wallet_address)
-       VALUES ($1, $2, $3) RETURNING id`,
-      [anonId, input.displayName, input.walletAddress ?? null],
+      `INSERT INTO creator (anon_id, display_name, wallet_address, wallet_verified_at)
+       VALUES ($1, $2, $3, CASE WHEN $4 THEN now() END) RETURNING id`,
+      [
+        anonId,
+        input.displayName,
+        input.walletAddress ?? null,
+        Boolean(input.walletAddress && input.walletVerified),
+      ],
     );
     const creatorId = created.rows[0].id;
     await acceptCurrentConsent(creatorId, tx);

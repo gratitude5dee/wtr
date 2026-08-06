@@ -165,6 +165,13 @@ describe("contributor", () => {
     });
   });
 
+  it("reports unverified for a self-declared wallet with no proof of control", async () => {
+    // Typing an address into settings is not proof of key possession, so the
+    // attested document must not claim verification.
+    const document = await build(await seededStore({ creator: { walletVerified: false } }));
+    expect(document.contributor.account_verification_status).toBe("unverified");
+  });
+
   it("omits geo entirely when the country is unknown or not a country code", async () => {
     for (const kycCountry of [null, "Berlin, Germany"]) {
       const document = await build(await seededStore({ creator: { kycCountry } }));
