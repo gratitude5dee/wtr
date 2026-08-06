@@ -48,6 +48,9 @@ export async function onboardAction(formData: FormData): Promise<void> {
     const creatorId = await createCreatorWithConsent({
       displayName,
       walletAddress,
+      // Only the sessions path carries a SIWE-verified wallet; the dev-mode
+      // form field is self-declared and proves nothing.
+      walletVerified: sessionsEnabled(),
     });
     if (sessionsEnabled() && walletAddress) {
       const jar = await cookies();

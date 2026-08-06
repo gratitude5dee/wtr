@@ -43,6 +43,13 @@ export async function updateCreatorSettings(
     `UPDATE creator
      SET display_name = $2,
          wallet_address = $3,
+         -- A typed address is self-declared: any previous proof of control
+         -- stops applying the moment the address changes.
+         wallet_verified_at = CASE
+           WHEN lower(coalesce(wallet_address, '')) = lower(coalesce($3, ''))
+             THEN wallet_verified_at
+           ELSE NULL
+         END,
          payout_pref = $4,
          tax_status = CASE
            WHEN tax_status = 'not_submitted' AND $5 THEN 'submitted'
