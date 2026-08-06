@@ -29,14 +29,71 @@ export function toSha256Ref(hash: string): Sha256Ref {
 
 export type TraceMediaCategory = "audio" | "video" | "image" | "document";
 
+/**
+ * Consent state. Both documents the creator accepted are carried: the terms of
+ * service and the privacy policy, each by version, content hash and URI, so an
+ * auditor can re-fetch the exact text that was agreed to.
+ */
+export interface TraceConsent {
+  tos_version: string;
+  tos_hash: Sha256Ref;
+  tos_uri?: string;
+  privacy_policy_version?: string;
+  privacy_policy_hash?: Sha256Ref;
+  privacy_policy_uri?: string;
+}
+
 export interface TraceContributor {
   /** Stable pseudonym. Never a name, email or handle. */
   anon_id: string;
   kyc_status: "unverified" | "pending" | "verified" | "failed";
-  consent: {
-    tos_version: string;
-    tos_hash: Sha256Ref;
-  } | null;
+  /** ISO 3166-1 alpha-2 country of the KYC record. Country granularity only. */
+  kyc_country?: string;
+  /**
+   * Coarse jurisdiction of the contributor, at country granularity. Never an
+   * address, postcode or GPS-derived location.
+   */
+  geo_region?: string;
+  tax_status?: "not_submitted" | "submitted" | "verified";
+  /** How far the platform account itself is verified (wallet proof of control). */
+  account_verification_status?: "unverified" | "wallet_verified";
+  consent: TraceConsent | null;
+}
+
+/**
+ * Perceptual fingerprints of the content (Tier-1 measurement). Similarity
+ * signals only — they cannot reconstruct the media and carry no PII.
+ */
+export interface TraceFileHashes {
+  phash64?: string;
+  dhash64?: string;
+  ahash64?: string;
+  /** Per-keyframe phashes for video, in keyframe order. */
+  keyframe_phashes?: string[];
+}
+
+/**
+ * Signature over the canonical trace-v1.0 payload, which is what lets the
+ * "Attested" lifecycle step render. `payload_hash` is the SHA-256 of the
+ * canonical document WITHOUT this block, so the attestation never has to hash
+ * itself. `signature` is optional on staging, where signing may be unconfigured.
+ */
+export interface TraceAttestation {
+  payload_hash: Sha256Ref;
+  signature?: string;
+  key_id: string;
+  key_url?: string;
+  signed_at_utc: string;
+}
+
+/** Optional grouping ids: batch / campaign / task an asset belongs to. */
+export interface TraceAssetGrouping {
+  /** Dataset (batch) the asset was exported under. */
+  collection_id?: string;
+  /** Lab (buyer) the asset was licensed to. Pseudonymous id, never a name. */
+  customer_id?: string;
+  /** Data request / brief the asset was submitted to. */
+  task_id?: string;
 }
 
 /** The canonical, full-state document. Its SHA-256 is the `metadata_root`. */
@@ -47,17 +104,23 @@ export interface TraceDocument {
     mime_type: string;
     media_category: TraceMediaCategory;
     size_bytes: number | null;
+    hashes?: TraceFileHashes;
   };
   contributor: TraceContributor;
+  asset?: TraceAssetGrouping;
   app: {
     platform_name: string;
+    legal_entity?: string;
   };
   timestamps: {
     originated_at: string;
+    /** When the content itself was captured, when the creator's file reveals it. */
+    captured_at?: string;
     uploaded_at: string;
     /** Promoted to Trace when a payout is credited (goal.md §5 subset). */
     payment_credited_at?: string;
   };
+  attestation?: TraceAttestation;
   /** Everything WTR-specific, echoed back verbatim by the audit views. */
   provider_payload: Record<string, unknown>;
 }

@@ -63,6 +63,29 @@ describe("validateMeasuredLabels", () => {
     );
   });
 
+  it("normalises captured_at to a UTC instant", () => {
+    const labels = validateMeasuredLabels({ captured_at: "2026-01-15T08:30:00+02:00" });
+    expect(labels).toEqual([
+      {
+        namespace: "wtr",
+        key: "captured_at",
+        value: "2026-01-15T06:30:00.000Z",
+        source: "model",
+        confidence: 1,
+      },
+    ]);
+  });
+
+  it("rejects an unparseable or future captured_at", () => {
+    expect(() => validateMeasuredLabels({ captured_at: "yesterday" })).toThrow(MeasuredLabelError);
+    expect(() => validateMeasuredLabels({ captured_at: 1_700_000_000 })).toThrow(
+      MeasuredLabelError,
+    );
+    expect(() => validateMeasuredLabels({ captured_at: "2999-01-01T00:00:00Z" })).toThrow(
+      MeasuredLabelError,
+    );
+  });
+
   it("rejects unknown keys — the allowlist is strict", () => {
     expect(() => validateMeasuredLabels({ gps_lat: 1 })).toThrow(MeasuredLabelError);
   });
