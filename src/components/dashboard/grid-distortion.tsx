@@ -149,7 +149,7 @@ export default function GridDistortion({
 
     if (imageSrc) {
       const textureLoader = new THREE.TextureLoader();
-      textureLoader.load(imageSrc, (texture: THREE.Texture) => {
+      textureLoader.load(imageSrc, (texture) => {
         imageAspectRef.current = texture.image.width / texture.image.height;
         configureTexture(texture);
       });

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
-import Ferrofluid from "@/components/marketing/ferrofluid";
+import { WaterIntroBackground } from "@/components/marketing/water-intro-background";
 import styles from "./intro-splash.module.css";
 
 interface IntroSplashProps {
@@ -93,26 +93,9 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
   }, [complete]);
 
   return (
-    <div
-      ref={rootRef}
-      className={styles.root}
-      aria-label="Introduction to WTR"
-    >
+    <div ref={rootRef} className={styles.root} aria-label="Introduction to WTR">
       <div className={styles.scene} aria-hidden="true">
-        <Ferrofluid
-          colors={["#06151b", "#0b3a53", "#1f7a8c", "#b9e9f2"]}
-          flowDirection="down"
-          speed={0.28}
-          scale={1.25}
-          turbulence={1.2}
-          fluidity={0.15}
-          rimWidth={0.32}
-          sharpness={1.9}
-          shimmer={1.1}
-          glow={3.4}
-          mouseStrength={0.55}
-          mouseRadius={0.42}
-        />
+        <WaterIntroBackground scrollRootRef={rootRef} />
         <div className={styles.sceneWash} />
         <div className={styles.orbitLarge} />
         <div className={styles.orbitSmall} />
