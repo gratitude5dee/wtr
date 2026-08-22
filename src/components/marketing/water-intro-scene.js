@@ -82,7 +82,27 @@ const params = {
 };
 
 // ─── Scene ──────────────────────────────────────────────────────────────────
-export async function createWaterIntroScene({ container, scrollRoot }) {
+export async function createWaterIntroScene(options) {
+  const cleanups = [];
+  let disposed = false;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    for (let index = cleanups.length - 1; index >= 0; index -= 1) {
+      cleanups[index]();
+    }
+  };
+
+  try {
+    await initializeWaterIntroScene(options, cleanups);
+    return dispose;
+  } catch (error) {
+    dispose();
+    throw error;
+  }
+}
+
+async function initializeWaterIntroScene({ container, scrollRoot }, cleanups) {
   let width = Math.max(container.clientWidth, 1);
   let height = Math.max(container.clientHeight, 1);
   const scene = new THREE.Scene();
@@ -117,6 +137,21 @@ export async function createWaterIntroScene({ container, scrollRoot }) {
   renderer.domElement.style.cssText =
     "position:absolute;inset:0;width:100%;height:100%;display:block;";
   container.appendChild(renderer.domElement);
+  cleanups.push(
+    () => renderer.domElement.remove(),
+    () => renderer.dispose(),
+    () => {
+      scene.traverse((object) => {
+        if (object.geometry) object.geometry.dispose();
+        if (Array.isArray(object.material)) {
+          for (const material of object.material) material.dispose();
+        } else if (object.material) {
+          object.material.dispose();
+        }
+      });
+    },
+  );
+
   await renderer.init();
 
   const skyTopColorU = uniform(new THREE.Color(params.skyTopColor));
@@ -197,6 +232,7 @@ export async function createWaterIntroScene({ container, scrollRoot }) {
 
   // ─── RenderPipeline ─────────────────────────────────────────────────────────
   const renderPipeline = new THREE.RenderPipeline(renderer);
+  cleanups.push(() => renderPipeline.dispose());
 
   // SSGI composites (without SSR)
   const compositeGiAo = vec4(
@@ -939,6 +975,9 @@ export async function createWaterIntroScene({ container, scrollRoot }) {
   scrollRoot.addEventListener("scroll", updateCameraAndBlurProgress, {
     passive: true,
   });
+  cleanups.push(() =>
+    scrollRoot.removeEventListener("scroll", updateCameraAndBlurProgress),
+  );
 
   // ─── Mouse interaction ──────────────────────────────────────────────────────
   const mouseNDC = new THREE.Vector2(-Infinity, -Infinity);
@@ -953,6 +992,9 @@ export async function createWaterIntroScene({ container, scrollRoot }) {
   scrollRoot.addEventListener("pointermove", handlePointerMove, {
     passive: true,
   });
+  cleanups.push(() =>
+    scrollRoot.removeEventListener("pointermove", handlePointerMove),
+  );
 
   // ─── Resize ─────────────────────────────────────────────────────────────────
   function resize() {
@@ -968,6 +1010,7 @@ export async function createWaterIntroScene({ container, scrollRoot }) {
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(container);
   resizeObserver.observe(scrollRoot);
+  cleanups.push(() => resizeObserver.disconnect());
 
   // ─── Animate ────────────────────────────────────────────────────────────────
   const ringMesh = scene.getObjectByName("floatingRing");
@@ -1023,25 +1066,10 @@ export async function createWaterIntroScene({ container, scrollRoot }) {
   }
 
   document.addEventListener("visibilitychange", handleVisibilityChange);
+  cleanups.push(() =>
+    document.removeEventListener("visibilitychange", handleVisibilityChange),
+  );
   updateCameraAndBlurProgress();
   renderer.setAnimationLoop(animate);
-
-  return () => {
-    renderer.setAnimationLoop(null);
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-    scrollRoot.removeEventListener("scroll", updateCameraAndBlurProgress);
-    scrollRoot.removeEventListener("pointermove", handlePointerMove);
-    resizeObserver.disconnect();
-    scene.traverse((object) => {
-      if (object.geometry) object.geometry.dispose();
-      if (Array.isArray(object.material)) {
-        for (const material of object.material) material.dispose();
-      } else if (object.material) {
-        object.material.dispose();
-      }
-    });
-    renderPipeline.dispose();
-    renderer.dispose();
-    renderer.domElement.remove();
-  };
+  cleanups.push(() => renderer.setAnimationLoop(null));
 }

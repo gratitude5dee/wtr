@@ -9,7 +9,6 @@ import {
   instancedArray,
   instanceIndex,
   vertexIndex,
-  globalId,
   int,
   min,
   max,
@@ -40,8 +39,6 @@ export class WaterPlane {
   #raycastMesh;
   #raycaster;
   #pingPong;
-  #dispatchX;
-  #dispatchZ;
 
   constructor(
     scene,
@@ -83,8 +80,6 @@ export class WaterPlane {
       WORKGROUP_SIZE;
     this.resX = resX;
     this.resZ = resZ;
-    this.#dispatchX = resX / WORKGROUP_SIZE;
-    this.#dispatchZ = resZ / WORKGROUP_SIZE;
 
     // ─── Uniforms ──────────────────────────────────────────────────────────────
     const readFromA = uniform(1);
@@ -180,11 +175,13 @@ export class WaterPlane {
         const newHeight = neighborHeight.mul(viscosityU.pow(cellSize)).toVar();
 
         // Cell world-local position
-        const cx = float(globalId.x)
+        const cellX = int(instanceIndex.mod(resX));
+        const cellZ = int(instanceIndex.div(resX));
+        const cx = float(cellX)
           .mul(1 / resX)
           .sub(0.5)
           .mul(sizeX);
-        const cz = float(globalId.y)
+        const cz = float(cellZ)
           .mul(1 / resZ)
           .sub(0.5)
           .mul(sizeZ);
@@ -375,12 +372,11 @@ export class WaterPlane {
     this.#colliderRadiusU.value = colliderRadius;
 
     // Ping-pong compute
-    const dispatch = [this.#dispatchX, this.#dispatchZ, 1];
     if (this.#pingPong === 0) {
-      this.#renderer.compute(this.#computeHeightAtoB, dispatch);
+      this.#renderer.compute(this.#computeHeightAtoB);
       this.readFromA.value = 0;
     } else {
-      this.#renderer.compute(this.#computeHeightBtoA, dispatch);
+      this.#renderer.compute(this.#computeHeightBtoA);
       this.readFromA.value = 1;
     }
     this.#pingPong = 1 - this.#pingPong;
