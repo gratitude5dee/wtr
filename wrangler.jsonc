@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wtr",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "r2_buckets": [
+    {
+      "binding": "WTR_MEDIA",
+      "bucket_name": "wtr-media"
+    }
+  ],
+  "vars": {
+    "WTR_MEDIA_STORE": "r2",
+    "WTR_TRACE_BASE_URL": "https://staging-api.storyprotocol.net",
+    "WTR_TRACE_PROVIDER": "wtr",
+    "WTR_TRACE_LEGAL_ENTITY": "WTR",
+    "WTR_RPC_URL": "https://testnet.rpc.story.foundation",
+    "WTR_EXPLORER_URL": "https://testnet.explorer.story.foundation",
+    "WTR_CDR_API_URL": "http://172.192.41.96:1317"
+  }
+}
