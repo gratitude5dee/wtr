@@ -179,17 +179,109 @@ class BlobMediaStore implements MediaStore {
   }
 }
 
+/* ----------------------------------------------------------------- r2 -- */
+
+/**
+ * Cloudflare R2 mirror of {@link BlobMediaStore}: one object per chunk under
+ * the same `wtr/` key layout, reads never cached. Used on the Workers deploy
+ * where the R2 bucket is bound as `WTR_MEDIA`.
+ */
+async function r2Bucket(): Promise<{
+  put(key: string, value: Uint8Array, opts?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+  get(key: string): Promise<{ body: ReadableStream | null } | null>;
+  list(opts: { prefix: string; cursor?: string }): Promise<{ objects: { key: string }[]; truncated: boolean; cursor?: string }>;
+  delete(keys: string | string[]): Promise<void>;
+}> {
+  // Lazy dynamic import so plain `next build` (Vercel/dev) never resolves
+  // the OpenNext adapter — it only exists in the worker bundle.
+  const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+  const env = getCloudflareContext().env as { WTR_MEDIA?: unknown };
+  if (!env.WTR_MEDIA) throw new Error("WTR_MEDIA R2 binding is not configured");
+  return env.WTR_MEDIA as Awaited<ReturnType<typeof r2Bucket>>;
+}
+
+class R2MediaStore implements MediaStore {
+  async writeCiphertextChunk(assetId: string, offset: number, chunk: Uint8Array): Promise<void> {
+    await (await r2Bucket()).put(partKey(assetId, offset), chunk, {
+      httpMetadata: { contentType: "application/octet-stream" },
+    });
+  }
+
+  async truncateCiphertext(assetId: string, offset: number): Promise<void> {
+    const stale = (await this.listParts(assetId)).filter((part) => part.offset >= offset);
+    if (stale.length > 0) await (await r2Bucket()).delete(stale.map((part) => part.key));
+  }
+
+  async readCiphertext(assetId: string, expectedBytes: number): Promise<Uint8Array> {
+    const parts = await this.listParts(assetId);
+    const out = new Uint8Array(expectedBytes);
+    let position = 0;
+    for (const part of parts) {
+      if (part.offset !== position) {
+        throw new Error(`ciphertext incomplete: gap at byte ${position}`);
+      }
+      const object = await (await r2Bucket()).get(part.key);
+      if (!object?.body) throw new Error(`ciphertext part missing at byte ${position}`);
+      const bytes = new Uint8Array(await new Response(object.body).arrayBuffer());
+      if (position + bytes.byteLength > expectedBytes) {
+        throw new Error("ciphertext longer than declared total");
+      }
+      out.set(bytes, position);
+      position += bytes.byteLength;
+    }
+    if (position !== expectedBytes) {
+      throw new Error(`ciphertext incomplete: have ${position} bytes, expected ${expectedBytes}`);
+    }
+    return out;
+  }
+
+  async writePreview(assetId: string, bytes: Uint8Array): Promise<void> {
+    await (await r2Bucket()).put(previewKey(assetId), bytes, {
+      httpMetadata: { contentType: "image/jpeg" },
+    });
+  }
+
+  async readPreview(assetId: string): Promise<Uint8Array | null> {
+    const object = await (await r2Bucket()).get(previewKey(assetId)).catch(() => null);
+    if (!object?.body) return null;
+    return new Uint8Array(await new Response(object.body).arrayBuffer());
+  }
+
+  private async listParts(assetId: string): Promise<{ offset: number; key: string }[]> {
+    const parts: { offset: number; key: string }[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await (await r2Bucket()).list({ prefix: `wtr/ciphertext/${assetId}/`, cursor });
+      for (const object of page.objects) {
+        const match = /\/([0-9a-f]{16})\.part$/.exec(object.key);
+        if (match) parts.push({ offset: parseInt(match[1], 16), key: object.key });
+      }
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+    return parts.sort((a, b) => a.offset - b.offset);
+  }
+}
+
 /* ------------------------------------------------------------- factory -- */
 
-export function mediaStoreBackend(): "blob" | "fs" {
+export function mediaStoreBackend(): "blob" | "fs" | "r2" {
   const forced = process.env.WTR_MEDIA_STORE;
-  if (forced === "blob" || forced === "fs") return forced;
+  if (forced === "blob" || forced === "fs" || forced === "r2") return forced;
   return process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "fs";
 }
 
 let store: MediaStore | null = null;
 
 export function mediaStore(): MediaStore {
-  store ??= mediaStoreBackend() === "blob" ? new BlobMediaStore() : new FsMediaStore();
+  store ??= (() => {
+    switch (mediaStoreBackend()) {
+      case "blob":
+        return new BlobMediaStore();
+      case "r2":
+        return new R2MediaStore();
+      default:
+        return new FsMediaStore();
+    }
+  })();
   return store;
 }
